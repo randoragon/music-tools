@@ -49,15 +49,14 @@ impl Playlist {
     }
 
     pub fn iter_paths() -> io::Result<impl Iterator<Item = PathBuf>> {
+        fn path_filter(path: PathBuf) -> Option<PathBuf> {
+            if path.is_file() && path.ends_with(".m3u") {
+                return Some(path);
+            }
+            None
+        }
         let paths = fs::read_dir(PLAYLIST_DIR)?
-            .filter(|x| -> bool {
-                let path = match x {
-                    Ok(entry) => entry.path(),
-                    _ => return false,
-                };
-                path.is_file() && path.ends_with(".m3u")
-            })
-            .map(|x| -> PathBuf { x.unwrap().path() });
+            .filter_map(|result| result.ok().and_then(|entry| path_filter(entry.path())));
         Ok(paths)
     }
 }
