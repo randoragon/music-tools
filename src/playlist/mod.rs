@@ -2,6 +2,7 @@ pub mod track;
 
 use track::*;
 use anyhow::{Result, anyhow};
+use log::{error, warn};
 use std::path::{Path, PathBuf};
 use std::ffi::OsString;
 use std::collections::HashMap;
@@ -93,7 +94,7 @@ impl Playlist {
                     match Playlist::new(&path) {
                         Ok(playlist) => Some(playlist),
                         Err(e) => {
-                            eprintln!("Failed to read playlist '{:?}': {}, skipping", path, e);
+                            warn!("Failed to read playlist '{:?}': {}, skipping", path, e);
                             None
                         },
                     }
@@ -101,7 +102,7 @@ impl Playlist {
                 Some(iterator)
             },
             Err(e) => {
-                eprintln!("Failed to list the playlists directory '{:?}': {}", Playlist::dirname(), e);
+                error!("Failed to list the playlists directory '{:?}': {}", Playlist::dirname(), e);
                 None
             }
         }

@@ -11,12 +11,18 @@ struct Cli {
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
+    stderrlog::new()
+        .module(module_path!())
+        .module("music_tools")
+        .verbosity(2)
+        .init()
+        .unwrap();
+
     // Read all playlists
     let playlists: Vec<Playlist> = match Playlist::iter_playlists() {
         Some(it) => it.collect(),
         None => return ExitCode::FAILURE,
     };
 
-    println!("{:#?}", playlists);
     ExitCode::SUCCESS
 }
