@@ -1,14 +1,13 @@
 pub mod track;
 
-use track::*;
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use log::{error, warn};
-use std::path::{Path, PathBuf};
-use std::ffi::OsString;
 use std::collections::HashMap;
-use std::fs;
-use std::fs::File;
+use std::ffi::OsString;
+use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
+use std::path::{Path, PathBuf};
+use track::Track;
 
 /// Directory where all playlists are stored.
 const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
@@ -25,7 +24,7 @@ pub struct Playlist {
 
 impl Playlist {
     pub fn new<T: AsRef<Path>>(fpath: T) -> Result<Self> {
-        let mut pl = Playlist{
+        let mut pl = Playlist {
             path: PathBuf::from(fpath.as_ref()),
             name: OsString::with_capacity(64),
             tracks: Vec::new(),
@@ -65,7 +64,7 @@ impl Playlist {
                 Ok(home) => home,
                 Err(e) => panic!("Could not find $HOME: {}", e),
             };
-            path.push_str(&str[1..]);  // Note that '/' is guaranteed at str[1]
+            path.push_str(&str[1..]); // Note that '/' is guaranteed at str[1]
             return PathBuf::from(path);
         }
         PathBuf::from(str)

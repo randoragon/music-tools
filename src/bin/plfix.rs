@@ -1,6 +1,6 @@
+use clap::Parser;
 use music_tools::playlist::*;
 use std::process::ExitCode;
-use clap::Parser;
 
 #[derive(Parser)]
 struct Cli {
