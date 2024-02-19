@@ -63,7 +63,7 @@ impl Playlist {
 
     pub fn iter_paths() -> io::Result<impl Iterator<Item = PathBuf>> {
         fn path_filter(path: PathBuf) -> Option<PathBuf> {
-            if path.is_file() && path.ends_with(".m3u") {
+            if path.is_file() && path.extension().is_some_and(|x| x == "m3u") {
                 return Some(path);
             }
             None
