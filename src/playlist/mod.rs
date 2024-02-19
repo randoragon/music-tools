@@ -13,9 +13,9 @@ const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
 
 #[derive(Debug)]
 pub struct Playlist {
-    pub path: Utf8PathBuf,
-    pub name: String,
-    pub tracks: Vec<Track>,
+    path: Utf8PathBuf,
+    name: String,
+    tracks: Vec<Track>,
 
     /// Cached index for `tracks`, to avoid linear search.
     tracks_map: HashMap<Track, Vec<usize>>,
@@ -115,6 +115,35 @@ impl Playlist {
                 None
             }
         }
+    }
+
+    /// Returns the playlist path.
+    pub fn path(&self) -> &Utf8PathBuf {
+        &self.path
+    }
+
+    /// Returns the playlist name.
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    /// Returns an iterator to all tracks in the playlist, in order of appearance.
+    /// Note that tracks can repeat. For a unique iterator, see `tracks_unique()`.
+    pub fn tracks(&self) -> impl Iterator<Item = &Track> {
+        self.tracks.iter()
+    }
+
+    /// Returns an iterator to all unique tracks in the playlist.
+    /// The order is undefined and arbitrary.
+    pub fn tracks_unique(&self) -> impl Iterator<Item = &Track> {
+        self.tracks_map.iter().map(|(k, _)| k)
+    }
+
+    /// Returns a vector of playlist indices at which the given track occurs.
+    /// The indices are sorted in ascending order, i.e. the order in which
+    /// they appear on the playlist.
+    pub fn track_positions(&self, track: &Track) -> Option<&Vec<usize>> {
+        self.tracks_map.get(track)
     }
 
     /// Write the playlist file to disk (previous contents are lost).
