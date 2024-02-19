@@ -63,6 +63,7 @@ impl Playlist {
         PathBuf::from(str)
     }
 
+    /// Returns an iterator over all playlist file paths.
     pub fn iter_paths() -> io::Result<impl Iterator<Item = PathBuf>> {
         fn path_filter(path: PathBuf) -> Option<PathBuf> {
             if path.is_file() && path.extension().is_some_and(|x| x == "m3u") {
@@ -73,5 +74,29 @@ impl Playlist {
         let paths = fs::read_dir(Self::dirname())?
             .filter_map(|result| result.ok().and_then(|entry| path_filter(entry.path())));
         Ok(paths)
+    }
+
+    /// Returns an iterator over all playlists.
+    ///
+    /// Playlists are only loaded into memory when the iterator gets to them.
+    pub fn iter_playlists() -> Option<impl Iterator<Item = Playlist>> {
+        match Self::iter_paths() {
+            Ok(paths) => {
+                let iterator = paths.filter_map(|path|
+                    match Playlist::new(&path) {
+                        Ok(playlist) => Some(playlist),
+                        Err(e) => {
+                            eprintln!("Failed to read playlist '{:?}': {}, skipping", path, e);
+                            None
+                        },
+                    }
+                );
+                Some(iterator)
+            },
+            Err(e) => {
+                eprintln!("Failed to list the playlists directory '{:?}': {}", Playlist::dirname(), e);
+                None
+            }
+        }
     }
 }

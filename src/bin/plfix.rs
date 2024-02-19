@@ -1,6 +1,5 @@
 use music_tools::playlist::*;
 use std::process::ExitCode;
-use std::io;
 use clap::Parser;
 
 #[derive(Parser)]
@@ -13,22 +12,11 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
 
     // Read all playlists
-    let mut playlists = Vec::<Playlist>::new();
-    match Playlist::iter_paths() {
-        Ok(paths) => {
-            for path in paths {
-                match Playlist::new(&path) {
-                    Ok(playlist) => playlists.push(playlist),
-                    Err(e) => eprintln!("Failed to read playlist '{:?}': {}, skipping", path, e),
-                }
-            }
-        },
-        Err(e) => {
-            eprintln!("Failed to list the playlists directory '{:?}': {}", Playlist::dirname(), e);
-            return ExitCode::FAILURE;
-        }
-    }
+    let playlists: Vec<Playlist> = match Playlist::iter_playlists() {
+        Some(it) => it.collect(),
+        None => return ExitCode::FAILURE,
+    };
 
-    println!("{:?}", playlists);
+    println!("{:#?}", playlists);
     ExitCode::SUCCESS
 }
