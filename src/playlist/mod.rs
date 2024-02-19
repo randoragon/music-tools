@@ -5,7 +5,7 @@ use log::{error, warn};
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader};
+use std::io::{Write, BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use track::Track;
 
@@ -105,5 +105,25 @@ impl Playlist {
                 None
             }
         }
+    }
+
+    /// Write the playlist file to disk (previous contents are lost).
+    pub fn write(&self) -> Result<()> {
+        // Theoretically, converting from PathBuf to String can fail if the underlying OsString
+        // cannot be converted to UTF-8. Writing a playlist file must not "partially succeed";
+        // in case of any difficulty, it should fail without doing anything to the external file.
+        // As such, make sure all PathBufs can be converted first, and only then begin writing
+        // to the file.
+        let mut track_strings: Vec<String> = vec![];
+        for track in &self.tracks {
+            match track.path.clone().into_os_string().into_string() {
+                Ok(str) => track_strings.push(str),
+                Err(e) => return Err(anyhow!("Failed to convert track OsString to String: {:?}", e)),
+            };
+        }
+
+        let mut file = File::create(&self.path)?;
+        write!(file, "{}\n", track_strings.join("\n"))?;
+        Ok(())
     }
 }
