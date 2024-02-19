@@ -2,6 +2,7 @@ pub mod track;
 
 use track::*;
 use std::path::{Path, PathBuf};
+use std::ffi::OsString;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -14,6 +15,7 @@ const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
 #[derive(Debug)]
 pub struct Playlist {
     pub path: PathBuf,
+    pub name: OsString,
     pub tracks: Vec<Track>,
 
     /// Cached index for `tracks`, to avoid linear search.
@@ -24,9 +26,14 @@ impl Playlist {
     pub fn new<T: AsRef<Path>>(fpath: T) -> io::Result<Self> {
         let mut pl = Playlist{
             path: PathBuf::from(fpath.as_ref()),
+            name: OsString::with_capacity(64),
             tracks: Vec::new(),
             tracks_map: HashMap::new(),
         };
+        match pl.path.file_stem() {
+            Some(name) => pl.name.push(name),
+            None => return Err(io::Error::other(format!("Failed to extract filename from '{:?}'", pl.path))),
+        }
 
         let file = BufReader::new(File::open(fpath)?);
         for line in file.lines() {
