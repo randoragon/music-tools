@@ -24,7 +24,7 @@ fn main() -> ExitCode {
             }
         },
         Err(e) => {
-            eprintln!("Failed to list the playlists directory '{}': {}", PLAYLIST_DIR, e);
+            eprintln!("Failed to list the playlists directory '{:?}': {}", Playlist::dirname(), e);
             return ExitCode::FAILURE;
         }
     }

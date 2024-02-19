@@ -9,7 +9,7 @@ use std::io;
 use std::io::{BufRead, BufReader};
 
 /// Directory where all playlists are stored.
-pub const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
+const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
 
 #[derive(Debug)]
 pub struct Playlist {
@@ -48,6 +48,19 @@ impl Playlist {
         Ok(pl)
     }
 
+    pub fn dirname() -> PathBuf {
+        let str = PLAYLIST_DIR.to_string();
+        if str.starts_with("~/") {
+            let mut path = match std::env::var("HOME") {
+                Ok(home) => home,
+                Err(e) => panic!("Could not find $HOME: {}", e),
+            };
+            path.push_str(&str[1..]);  // Note that '/' is guaranteed at str[1]
+            return PathBuf::from(path);
+        }
+        PathBuf::from(str)
+    }
+
     pub fn iter_paths() -> io::Result<impl Iterator<Item = PathBuf>> {
         fn path_filter(path: PathBuf) -> Option<PathBuf> {
             if path.is_file() && path.ends_with(".m3u") {
@@ -55,7 +68,7 @@ impl Playlist {
             }
             None
         }
-        let paths = fs::read_dir(PLAYLIST_DIR)?
+        let paths = fs::read_dir(Self::dirname())?
             .filter_map(|result| result.ok().and_then(|entry| path_filter(entry.path())));
         Ok(paths)
     }
