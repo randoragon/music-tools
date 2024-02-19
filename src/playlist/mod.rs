@@ -1,12 +1,11 @@
 pub mod track;
 
 use anyhow::{anyhow, Result};
+use camino::{Utf8Path, Utf8PathBuf};
 use log::{error, warn};
 use std::collections::HashMap;
-use std::ffi::OsString;
 use std::fs::{self, File};
 use std::io::{Write, BufRead, BufReader};
-use std::path::{Path, PathBuf};
 use track::Track;
 
 /// Directory where all playlists are stored.
@@ -14,8 +13,8 @@ const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
 
 #[derive(Debug)]
 pub struct Playlist {
-    pub path: PathBuf,
-    pub name: OsString,
+    pub path: Utf8PathBuf,
+    pub name: String,
     pub tracks: Vec<Track>,
 
     /// Cached index for `tracks`, to avoid linear search.
@@ -23,19 +22,19 @@ pub struct Playlist {
 }
 
 impl Playlist {
-    pub fn new<T: AsRef<Path>>(fpath: T) -> Result<Self> {
+    pub fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
         let mut pl = Playlist {
-            path: PathBuf::from(fpath.as_ref()),
-            name: OsString::with_capacity(64),
+            path: Utf8PathBuf::from(fpath.as_ref()),
+            name: String::with_capacity(64),
             tracks: Vec::new(),
             tracks_map: HashMap::new(),
         };
         match pl.path.file_stem() {
-            Some(name) => pl.name.push(name),
+            Some(name) => pl.name.push_str(name),
             None => return Err(anyhow!("Failed to extract filename from '{:?}'", pl.path)),
         }
 
-        let file = BufReader::new(File::open(fpath)?);
+        let file = BufReader::new(File::open(&pl.path)?);
         for line in file.lines() {
             match line {
                 Ok(str) => {
@@ -57,30 +56,41 @@ impl Playlist {
         Ok(pl)
     }
 
-    pub fn dirname() -> PathBuf {
+    pub fn dirname() -> Utf8PathBuf {
         let str = PLAYLIST_DIR.to_string();
         if str.starts_with("~/") {
             let mut path = match std::env::var("HOME") {
                 Ok(home) => home,
-                Err(e) => panic!("Could not find $HOME: {}", e),
+                Err(e) => panic!("Failed to read $HOME: {}", e),
             };
             path.push_str(&str[1..]); // Note that '/' is guaranteed at str[1]
-            return PathBuf::from(path);
+            return Utf8PathBuf::from(path);
         }
-        PathBuf::from(str)
+        Utf8PathBuf::from(str)
     }
 
     /// Returns an iterator over all playlist file paths.
-    pub fn iter_paths() -> Result<impl Iterator<Item = PathBuf>> {
-        fn path_filter(path: PathBuf) -> Option<PathBuf> {
+    pub fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
+        let mut path_strings = Vec::<Utf8PathBuf>::new();
+        for result in fs::read_dir(Self::dirname())? {
+            let entry = match result {
+                Ok(entry) => entry,
+                Err(e) => {
+                    warn!("Unexpected error when listing the playlists directory: {}, skipping", e);
+                    continue;
+                },
+            };
+            let path = entry.path();
+            let path_str = match path.to_str() {
+                Some(str) => str,
+                None => return Err(anyhow!("Failed to convert system path to UTF-8 (other encodings not supported)")),
+            };
+            let path = Utf8PathBuf::from(path_str);
             if path.is_file() && path.extension().is_some_and(|x| x == "m3u") {
-                return Some(path);
+                path_strings.push(path);
             }
-            None
         }
-        let paths = fs::read_dir(Self::dirname())?
-            .filter_map(|result| result.ok().and_then(|entry| path_filter(entry.path())));
-        Ok(paths)
+        Ok(path_strings.into_iter())
     }
 
     /// Returns an iterator over all playlists.
