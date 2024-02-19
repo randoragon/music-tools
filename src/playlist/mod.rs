@@ -1,12 +1,12 @@
 pub mod track;
 
 use track::*;
+use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 use std::ffi::OsString;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io;
 use std::io::{BufRead, BufReader};
 
 /// Directory where all playlists are stored.
@@ -23,7 +23,7 @@ pub struct Playlist {
 }
 
 impl Playlist {
-    pub fn new<T: AsRef<Path>>(fpath: T) -> io::Result<Self> {
+    pub fn new<T: AsRef<Path>>(fpath: T) -> Result<Self> {
         let mut pl = Playlist{
             path: PathBuf::from(fpath.as_ref()),
             name: OsString::with_capacity(64),
@@ -32,7 +32,7 @@ impl Playlist {
         };
         match pl.path.file_stem() {
             Some(name) => pl.name.push(name),
-            None => return Err(io::Error::other(format!("Failed to extract filename from '{:?}'", pl.path))),
+            None => return Err(anyhow!("Failed to extract filename from '{:?}'", pl.path)),
         }
 
         let file = BufReader::new(File::open(fpath)?);
@@ -71,7 +71,7 @@ impl Playlist {
     }
 
     /// Returns an iterator over all playlist file paths.
-    pub fn iter_paths() -> io::Result<impl Iterator<Item = PathBuf>> {
+    pub fn iter_paths() -> Result<impl Iterator<Item = PathBuf>> {
         fn path_filter(path: PathBuf) -> Option<PathBuf> {
             if path.is_file() && path.extension().is_some_and(|x| x == "m3u") {
                 return Some(path);
