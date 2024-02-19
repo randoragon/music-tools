@@ -13,6 +13,7 @@ const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
 
 #[derive(Debug)]
 pub struct Playlist {
+    pub path: PathBuf,
     pub tracks: Vec<Track>,
 
     /// Cached index for `tracks`, to avoid linear search.
@@ -22,6 +23,7 @@ pub struct Playlist {
 impl Playlist {
     pub fn new<T: AsRef<Path>>(fpath: T) -> io::Result<Self> {
         let mut pl = Playlist{
+            path: PathBuf::from(fpath.as_ref()),
             tracks: Vec::new(),
             tracks_map: HashMap::new(),
         };
