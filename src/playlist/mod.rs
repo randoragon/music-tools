@@ -126,4 +126,33 @@ impl Playlist {
         write!(file, "{}\n", track_strings.join("\n"))?;
         Ok(())
     }
+
+    /// Remove a track from the playlist, by index.
+    pub fn remove_at(&mut self, index: usize) {
+        if index >= self.tracks.len() {
+            warn!("Out-of-bounds remove_at requested (index: {}, len: {})", index, self.tracks.len());
+            return;
+        }
+
+        // Remove index pointing at the given track from `tracks_map`
+        let track = &self.tracks[index];
+        // If either unwrap here fails, it means `tracks_map` got corrupt somehow
+        let map_index = self.tracks_map[track].iter().position(|&x| x == index).unwrap();
+        self.tracks_map.get_mut(track).unwrap().remove(map_index);
+
+        self.tracks.remove(index);
+    }
+
+    /// Remove all occurrences of a track from the playlist.
+    pub fn remove_all(&mut self, track: &Track) {
+        if !self.tracks_map.contains_key(track) {
+            warn!("Attempted to remove a track that does not exist (playlist: {:?}, track: {:?})", self.name, track);
+            return;
+        }
+        let mut indices = self.tracks_map.remove(track).unwrap();
+        indices.sort_unstable();
+        for index in indices.iter().rev() {
+            self.remove_at(*index);
+        }
+    }
 }
