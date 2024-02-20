@@ -31,11 +31,11 @@ impl std::str::FromStr for Entry {
         let mut it = line.splitn(2, '\t');
         let count_str = match it.next() {
             Some(split) => split,
-            None => return Err(anyhow!("Failed to extract count substring '{}' from playcount line", line)),
+            None => return Err(anyhow!("Failed to extract count substring from playcount line '{}'", line)),
         };
         let path = match it.next() {
             Some(split) => Utf8PathBuf::from(split),
-            None => return Err(anyhow!("Failed to extract path substring '{}' from playcount line", line)),
+            None => return Err(anyhow!("Failed to extract path substring from playcount line '{}'", line)),
         };
 
         let count = match count_str.parse::<usize>() {
