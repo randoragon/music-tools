@@ -1,5 +1,6 @@
 pub mod entry;
 
+pub use entry::Entry;
 pub use crate::tracksfile::TracksFile;
 
 use crate::track::Track;
@@ -9,7 +10,6 @@ use log::{error, warn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
-use entry::Entry;
 
 #[derive(Debug)]
 pub struct Playcount {
