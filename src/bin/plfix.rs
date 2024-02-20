@@ -9,26 +9,10 @@ struct Cli {
     pretend: bool,
 }
 
-fn main() -> ExitCode {
-    let cli = Cli::parse();
-
-    stderrlog::new()
-        .module(module_path!())
-        .module("music_tools")
-        .verbosity(2)
-        .init()
-        .unwrap();
-
-    // Read all playlists
-    let mut playlists: Vec<Playlist> = match Playlist::iter() {
-        Some(it) => it.collect(),
-        None => return ExitCode::FAILURE,
-    };
-
-    // Remove duplicates
-    println!("-- PLAYLISTS --");
+/// Returns the total number of duplicate entries found.
+fn remove_playlist_duplicates(playlists: impl Iterator<Item = Playlist>, pretend: bool) -> usize {
     let mut n_duplicates = 0usize;
-    for playlist in playlists.iter_mut() {
+    for mut playlist in playlists {
         // Duplicates are allowed in history playlists
         if playlist.name().starts_with("hist.") {
             continue;
@@ -45,8 +29,8 @@ fn main() -> ExitCode {
             }
         }
 
-        if !cli.pretend && indices.len() != 0 {
-            // Remove the indices
+        // Remove the indices
+        if !pretend && indices.len() != 0 {
             indices.sort_unstable();
             indices.into_iter().rev().for_each(|x| playlist.remove_at(x));
             if let Err(e) = playlist.write() {
@@ -54,11 +38,29 @@ fn main() -> ExitCode {
             }
         }
     }
-    match n_duplicates {
-        0 => println!("No duplicates paths found"),
-        _ => println!("{} {} duplicate paths",
+    n_duplicates
+}
+
+fn main() -> ExitCode {
+    let cli = Cli::parse();
+
+    stderrlog::new()
+        .module(module_path!())
+        .module("music_tools")
+        .verbosity(2)
+        .init()
+        .unwrap();
+
+    println!("-- PLAYLISTS --");
+    let playlists = match Playlist::iter() {
+        Some(it) => it,
+        None => return ExitCode::FAILURE,
+    };
+    match remove_playlist_duplicates(playlists, cli.pretend) {
+        0 => println!("No duplicate paths found"),
+        n => println!("{} {} duplicate paths",
             if cli.pretend { "Detected" } else { "Removed" },
-            n_duplicates),
+            n),
     };
 
     ExitCode::SUCCESS
