@@ -1,16 +1,16 @@
-use std::path::PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 
 /// A track in a playlist.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Track {
     /// The path to the audio file, relative to `MUSIC_DIR`.
-    pub path: PathBuf,
+    pub path: Utf8PathBuf,
 }
 
 impl Track {
-    pub fn new(fpath: &str) -> Self {
+    pub fn new<T: AsRef<Utf8Path>>(fpath: T) -> Self {
         Track {
-            path: PathBuf::from(fpath),
+            path: Utf8PathBuf::from(fpath.as_ref()),
         }
     }
 }
