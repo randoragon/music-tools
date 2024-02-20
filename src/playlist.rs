@@ -1,3 +1,5 @@
+pub use crate::tracksfile::TracksFile;
+
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -5,9 +7,6 @@ use log::{error, warn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
-
-/// Directory where all playlists are stored.
-const PLAYLIST_DIR: &'static str = "~/Music/Playlists";
 
 #[derive(Debug)]
 pub struct Playlist {
@@ -20,7 +19,30 @@ pub struct Playlist {
 }
 
 impl Playlist {
-    pub fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
+    /// Directory where all playlists are stored.
+    const DIR: &'static str = "~/Music/Playlists";
+
+    /// Returns the path to the playlists directory.
+    fn dirname() -> Utf8PathBuf {
+        crate::expand_tilde(Self::DIR.to_string())
+    }
+
+    /// Returns an iterator over all playlist file paths.
+    fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
+        crate::iter_paths(
+            &Self::dirname(),
+            |x| x.is_file() && x.extension().is_some_and(|y| y == "m3u")
+        )
+    }
+
+    /// Returns the playlist name.
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+}
+
+impl TracksFile for Playlist {
+    fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
         let mut pl = Self {
             path: Utf8PathBuf::from(fpath.as_ref()),
             name: String::with_capacity(64),
@@ -53,23 +75,7 @@ impl Playlist {
         Ok(pl)
     }
 
-    /// Returns the path to the playlists directory.
-    pub fn dirname() -> Utf8PathBuf {
-        crate::expand_tilde(PLAYLIST_DIR.to_string())
-    }
-
-    /// Returns an iterator over all playlist file paths.
-    pub fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
-        crate::iter_paths(
-            &Self::dirname(),
-            |x| x.is_file() && x.extension().is_some_and(|y| y == "m3u")
-        )
-    }
-
-    /// Returns an iterator over all playlists.
-    ///
-    /// Playlists are only loaded into memory when the iterator gets to them.
-    pub fn iter_playlists() -> Option<impl Iterator<Item = Self>> {
+    fn iter() -> Option<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
             Err(e) => {
@@ -89,37 +95,23 @@ impl Playlist {
         Some(it)
     }
 
-    /// Returns the playlist path.
-    pub fn path(&self) -> &Utf8PathBuf {
+    fn path(&self) -> &Utf8PathBuf {
         &self.path
     }
 
-    /// Returns the playlist name.
-    pub fn name(&self) -> &String {
-        &self.name
-    }
-
-    /// Returns an iterator to all tracks in the playlist, in order of appearance.
-    /// Note that tracks can repeat. For a unique iterator, see `tracks_unique()`.
-    pub fn tracks(&self) -> impl Iterator<Item = &Track> {
+    fn tracks(&self) -> impl Iterator<Item = &Track> {
         self.tracks.iter()
     }
 
-    /// Returns an iterator to all unique tracks in the playlist.
-    /// The order is undefined and arbitrary.
-    pub fn tracks_unique(&self) -> impl Iterator<Item = &Track> {
+    fn tracks_unique(&self) -> impl Iterator<Item = &Track> {
         self.tracks_map.iter().map(|(k, _)| k)
     }
 
-    /// Returns a vector of playlist indices at which the given track occurs.
-    /// The indices are sorted in ascending order, i.e. the order in which
-    /// they appear on the playlist.
-    pub fn track_positions(&self, track: &Track) -> Option<&Vec<usize>> {
+    fn track_positions(&self, track: &Track) -> Option<&Vec<usize>> {
         self.tracks_map.get(track)
     }
 
-    /// Write the playlist file to disk (previous contents are lost).
-    pub fn write(&self) -> Result<()> {
+    fn write(&self) -> Result<()> {
         let mut file = File::create(&self.path)?;
         write!(file, "{}\n",
             self.tracks.iter()
@@ -130,8 +122,7 @@ impl Playlist {
         Ok(())
     }
 
-    /// Remove a track from the playlist, by index.
-    pub fn remove_at(&mut self, index: usize) {
+    fn remove_at(&mut self, index: usize) {
         if index >= self.tracks.len() {
             warn!("Out-of-bounds remove_at requested (index: {}, len: {})", index, self.tracks.len());
             return;
@@ -146,8 +137,7 @@ impl Playlist {
         self.tracks.remove(index);
     }
 
-    /// Remove all occurrences of a track from the playlist.
-    pub fn remove_all(&mut self, track: &Track) {
+    fn remove_all(&mut self, track: &Track) {
         if !self.tracks_map.contains_key(track) {
             warn!("Attempted to remove a track that does not exist (playlist: {:?}, track: {:?})", self.name, track);
             return;

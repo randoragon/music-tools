@@ -2,6 +2,8 @@ pub mod track;
 pub mod playlist;
 pub mod playcount;
 
+mod tracksfile;
+
 use std::fs;
 use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::{anyhow, Result};

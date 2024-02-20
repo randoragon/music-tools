@@ -20,7 +20,7 @@ fn main() -> ExitCode {
         .unwrap();
 
     // Read all playlists
-    let mut playlists: Vec<Playlist> = match Playlist::iter_playlists() {
+    let mut playlists: Vec<Playlist> = match Playlist::iter() {
         Some(it) => it.collect(),
         None => return ExitCode::FAILURE,
     };
