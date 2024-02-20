@@ -21,7 +21,7 @@ pub struct Playlist {
 
 impl Playlist {
     pub fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
-        let mut pl = Playlist {
+        let mut pl = Self {
             path: Utf8PathBuf::from(fpath.as_ref()),
             name: String::with_capacity(64),
             tracks: Vec::new(),
@@ -69,16 +69,16 @@ impl Playlist {
     /// Returns an iterator over all playlists.
     ///
     /// Playlists are only loaded into memory when the iterator gets to them.
-    pub fn iter_playlists() -> Option<impl Iterator<Item = Playlist>> {
+    pub fn iter_playlists() -> Option<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
             Err(e) => {
-                error!("Failed to list the playlists directory '{:?}': {}", Playlist::dirname(), e);
+                error!("Failed to list the playlists directory '{:?}': {}", Self::dirname(), e);
                 return None;
             },
         };
         let it = it.filter_map(|path|
-            match Playlist::new(&path) {
+            match Self::new(&path) {
                 Ok(playlist) => Some(playlist),
                 Err(e) => {
                     warn!("Failed to read playlist '{:?}': {}, skipping", path, e);

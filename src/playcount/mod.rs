@@ -23,7 +23,7 @@ pub struct Playcount {
 
 impl Playcount {
     pub fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
-        let mut pc = Playcount {
+        let mut pc = Self {
             path: Utf8PathBuf::from(fpath.as_ref()),
             entries: Vec::new(),
             tracks_map: HashMap::new(),
@@ -72,16 +72,16 @@ impl Playcount {
     /// Returns an iterator over all playcounts.
     ///
     /// Playcounts are only loaded into memory when the iterator gets to them.
-    pub fn iter_playcounts() -> Option<impl Iterator<Item = Playcount>> {
+    pub fn iter_playcounts() -> Option<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
             Err(e) => {
-                error!("Failed to list the playcounts directory '{:?}': {}", Playcount::dirname(), e);
+                error!("Failed to list the playcounts directory '{:?}': {}", Self::dirname(), e);
                 return None;
             },
         };
         let it = it.filter_map(|path|
-            match Playcount::new(&path) {
+            match Self::new(&path) {
                 Ok(playcount) => Some(playcount),
                 Err(e) => {
                     warn!("Failed to read playcount '{:?}': {}, skipping", path, e);
