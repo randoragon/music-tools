@@ -43,6 +43,42 @@ impl Playcount {
         self.entries.iter()
     }
 
+    /// Merges entries corresponding to the same track by keeping only the first one and
+    /// incrementing its count by the sum of the repeated ones (which are removed).
+    /// Returns the number of duplicate entries that were removed.
+    ///
+    /// If `pretend` is `true`, no modifications will be performed. This is useful for getting just
+    /// the number of duplicates.
+    pub fn merge_duplicates(&mut self, pretend: bool) -> usize {
+        // Maps self.entries indices to the amounts they should be incremented by.
+        let mut increments = HashMap::<usize, usize>::new();
+
+        // A list of all indices to remove from self.entries
+        let mut dupe_indices = Vec::new();
+
+        for track in self.tracks_unique() {
+            if let Some(pos) = self.track_positions(&track) {
+                if pos.len() > 1 {
+                    dupe_indices.extend_from_slice(&pos[1..]);
+                    increments.insert(
+                        pos[0],
+                        pos[1..].iter().map(|&x| self.entries[x].count).sum(),
+                    );
+                }
+            }
+        }
+
+        let n_duplicates = dupe_indices.len();
+
+        // Tally up count and remove duplicates
+        if !pretend && n_duplicates != 0 {
+            increments.into_iter().for_each(|(index, incr)| self.entries[index].count += incr);
+            dupe_indices.sort_unstable();
+            dupe_indices.into_iter().rev().for_each(|x| self.remove_at(x));
+        }
+
+        n_duplicates
+    }
 }
 
 impl TracksFile for Playcount {
