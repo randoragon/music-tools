@@ -8,8 +8,13 @@ use std::fs;
 use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::{anyhow, Result};
 use log::warn;
+use std::sync::OnceLock;
 
-const MUSIC_DIR: &str = "~/Music";
+/// Returns the path to the music directory.
+pub fn dirname() -> &'static Utf8Path {
+    static MUSIC_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
+    MUSIC_DIR.get_or_init(|| expand_tilde("~/Music".to_string()))
+}
 
 /// Converts a string that might begin with `"~/"` into a path with home directory expanded.
 /// Works by looking up the HOME environment variable. Panics if HOME is not found.

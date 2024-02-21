@@ -10,6 +10,7 @@ use log::{error, warn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct Playcount {
@@ -21,18 +22,16 @@ pub struct Playcount {
 }
 
 impl Playcount {
-    /// Directory where all playcount files are stored.
-    const DIR: &'static str = "~/Music/.playcount";
-
     /// Returns the path to the playcount directory.
-    fn dirname() -> Utf8PathBuf {
-        crate::expand_tilde(Self::DIR.to_string())
+    fn dirname() -> &'static Utf8Path {
+        static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
+        PLAYLISTS_DIR.get_or_init(|| crate::expand_tilde("~/Music/.playcount".to_string()))
     }
 
     /// Returns an iterator over all playcount file paths.
     fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
-            &Self::dirname(),
+            Self::dirname(),
             |x| x.is_file() && x.extension().is_some_and(|y| y == "tsv")
         )
     }

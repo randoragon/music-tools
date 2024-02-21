@@ -7,6 +7,7 @@ use log::{error, warn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
+use std::sync::OnceLock;
 
 #[derive(Debug)]
 pub struct Playlist {
@@ -19,18 +20,16 @@ pub struct Playlist {
 }
 
 impl Playlist {
-    /// Directory where all playlists are stored.
-    const DIR: &'static str = "~/Music/Playlists";
-
     /// Returns the path to the playlists directory.
-    fn dirname() -> Utf8PathBuf {
-        crate::expand_tilde(Self::DIR.to_string())
+    fn dirname() -> &'static Utf8Path {
+        static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
+        PLAYLISTS_DIR.get_or_init(|| crate::expand_tilde("~/Music/Playlists".to_string()))
     }
 
     /// Returns an iterator over all playlist file paths.
     fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
-            &Self::dirname(),
+            Self::dirname(),
             |x| x.is_file() && x.extension().is_some_and(|y| y == "m3u")
         )
     }
