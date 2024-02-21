@@ -31,7 +31,7 @@ fn remove_playlist_duplicates(playlists: impl Iterator<Item = Playlist>, pretend
         }
 
         // Remove the indices
-        if !pretend && indices.len() != 0 {
+        if !pretend && !indices.is_empty() {
             indices.sort_unstable();
             indices.into_iter().rev().for_each(|x| playlist.remove_at(x));
             if let Err(e) = playlist.write() {

@@ -104,7 +104,7 @@ impl TracksFile for Playlist {
     }
 
     fn tracks_unique(&self) -> impl Iterator<Item = &Track> {
-        self.tracks_map.iter().map(|(k, _)| k)
+        self.tracks_map.keys()
     }
 
     fn track_positions(&self, track: &Track) -> Option<&Vec<usize>> {
@@ -113,7 +113,7 @@ impl TracksFile for Playlist {
 
     fn write(&self) -> Result<()> {
         let mut file = File::create(&self.path)?;
-        write!(file, "{}\n",
+        writeln!(file, "{}",
             self.tracks.iter()
                 .map(|x| x.path.clone().into_string())
                 .collect::<Vec<String>>()

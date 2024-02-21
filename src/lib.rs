@@ -9,7 +9,7 @@ use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::{anyhow, Result};
 use log::warn;
 
-const MUSIC_DIR: &'static str = "~/Music";
+const MUSIC_DIR: &str = "~/Music";
 
 /// Converts a string that might begin with `"~/"` into a path with home directory expanded.
 /// Works by looking up the HOME environment variable. Panics if HOME is not found.

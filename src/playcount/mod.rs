@@ -57,7 +57,7 @@ impl Playcount {
         let mut dupe_indices = Vec::new();
 
         for track in self.tracks_unique() {
-            if let Some(pos) = self.track_positions(&track) {
+            if let Some(pos) = self.track_positions(track) {
                 if pos.len() > 1 {
                     dupe_indices.extend_from_slice(&pos[1..]);
                     increments.insert(
@@ -145,7 +145,7 @@ impl TracksFile for Playcount {
     }
 
     fn tracks_unique(&self) -> impl Iterator<Item = &Track> {
-        self.tracks_map.iter().map(|(k, _)| k)
+        self.tracks_map.keys()
     }
 
     fn track_positions(&self, track: &Track) -> Option<&Vec<usize>> {
@@ -154,7 +154,7 @@ impl TracksFile for Playcount {
 
     fn write(&self) -> Result<()> {
         let mut file = File::create(&self.path)?;
-        write!(file, "{}\n",
+        writeln!(file, "{}",
             self.entries.iter()
                 .map(|x| format!("{}\t{}", x.count, x.track.path))
                 .collect::<Vec<String>>()
