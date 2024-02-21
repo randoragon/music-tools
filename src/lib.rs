@@ -4,10 +4,10 @@ pub mod playcount;
 
 mod tracksfile;
 
-use std::fs;
-use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::{anyhow, Result};
+use camino::{Utf8Path, Utf8PathBuf};
 use log::warn;
+use std::fs;
 use std::sync::OnceLock;
 
 /// Returns the path to the music directory.
