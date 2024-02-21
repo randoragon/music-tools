@@ -11,7 +11,7 @@ struct Cli {
 }
 
 /// Returns the total number of duplicate entries found.
-fn remove_playlist_duplicates(playlists: impl Iterator<Item = Playlist>, pretend: bool) -> usize {
+fn remove_playlist_duplicates(playlists: impl IntoIterator<Item = Playlist>, pretend: bool) -> usize {
     let mut n_duplicates = 0usize;
     for mut playlist in playlists {
         // Duplicates are allowed in history playlists
@@ -43,7 +43,7 @@ fn remove_playlist_duplicates(playlists: impl Iterator<Item = Playlist>, pretend
 }
 
 /// Returns the total number of duplicate entries merged.
-fn merge_playcount_duplicates(playcounts: impl Iterator<Item = Playcount>, pretend: bool) -> usize {
+fn merge_playcount_duplicates(playcounts: impl IntoIterator<Item = Playcount>, pretend: bool) -> usize {
     let mut n_dupes_total = 0usize;
     for mut playcount in playcounts {
         let n_dupes = playcount.merge_duplicates(pretend);
