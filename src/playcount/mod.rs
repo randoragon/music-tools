@@ -25,7 +25,7 @@ impl Playcount {
     /// Returns the path to the playcount directory.
     fn dirname() -> &'static Utf8Path {
         static PLAYCOUNTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-        PLAYCOUNTS_DIR.get_or_init(|| crate::shellexpand_or_panic("~/Music/.playcount"))
+        PLAYCOUNTS_DIR.get_or_init(|| crate::path_from(dirs::home_dir, "Music/.playcount"))
     }
 
     /// Returns an iterator over all playcount file paths.

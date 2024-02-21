@@ -8,20 +8,34 @@ use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use log::warn;
 use std::fs;
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 /// Returns the path to the music directory.
 pub fn dirname() -> &'static Utf8Path {
     static MUSIC_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-    MUSIC_DIR.get_or_init(|| shellexpand_or_panic("~/Music"))
+    MUSIC_DIR.get_or_init(|| path_from(dirs::home_dir, "Music"))
 }
 
-/// Expands a path. Panics on any error encountered, including undefined variables.
-fn shellexpand_or_panic(path: &str) -> Utf8PathBuf {
-    match shellexpand::full(path) {
-        Ok(cow) => Utf8PathBuf::from(cow.as_ref()),
-        Err(e) => panic!("Failed to expand path '{}': {}", path, e),
-    }
+/// Constructs a path by concatenating a `dirs::*` function output and an arbitrary relative path.
+///
+/// # Examples
+/// ```
+/// assert_eq!(path_from(dirs::home_dir, "my_file.txt"), "/home/user/my_file.txt");
+/// ```
+pub fn path_from<T: AsRef<Utf8Path>>(base_dir: fn() -> Option<PathBuf>, rel_path: T) -> Utf8PathBuf {
+    assert!(rel_path.as_ref().is_relative(), "rel_path must be relative");
+    let path =  match base_dir() {
+        Some(path) => path,
+        None => panic!("Failed to locate home directory"),
+    };
+    assert!(path.is_absolute(), "base_dir must yield an absolute path");
+    let mut path = match path.to_str() {
+        Some(str) => Utf8PathBuf::from(str),
+        None => panic!("Failed to convert home path to UTF-8 (other encodings not supported)"),
+    };
+    path.push(rel_path);
+    path
 }
 
 /// Returns an iterator over directory files, with a filtering function.
