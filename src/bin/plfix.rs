@@ -11,9 +11,9 @@ struct Cli {
 }
 
 /// Returns the total number of duplicate entries found.
-fn remove_playlist_duplicates(playlists: impl IntoIterator<Item = Playlist>, pretend: bool) -> usize {
+fn remove_playlist_duplicates(playlists: &mut Vec<Playlist>, pretend: bool) -> usize {
     let mut n_duplicates = 0usize;
-    for mut playlist in playlists {
+    for playlist in playlists {
         // Duplicates are allowed in history playlists
         if playlist.name().starts_with("hist.") {
             continue;
@@ -43,9 +43,9 @@ fn remove_playlist_duplicates(playlists: impl IntoIterator<Item = Playlist>, pre
 }
 
 /// Returns the total number of duplicate entries merged.
-fn merge_playcount_duplicates(playcounts: impl IntoIterator<Item = Playcount>, pretend: bool) -> usize {
+fn merge_playcount_duplicates(playcounts: &mut Vec<Playcount>, pretend: bool) -> usize {
     let mut n_dupes_total = 0usize;
-    for mut playcount in playcounts {
+    for playcount in playcounts {
         let n_dupes = playcount.merge_duplicates(pretend);
         if !pretend && n_dupes != 0 {
             if let Err(e) = playcount.write() {
@@ -69,11 +69,11 @@ fn main() -> ExitCode {
         .unwrap();
 
     println!("-- PLAYLISTS --");
-    let playlists = match Playlist::iter() {
-        Some(it) => it,
+    let mut playlists = match Playlist::iter() {
+        Some(it) => it.collect::<Vec<Playlist>>(),
         None => return ExitCode::FAILURE,
     };
-    match remove_playlist_duplicates(playlists, cli.pretend) {
+    match remove_playlist_duplicates(&mut playlists, cli.pretend) {
         0 => println!("No duplicate paths found"),
         n => println!("{} {} duplicate paths",
             if cli.pretend { "Detected" } else { "Removed" },
@@ -81,11 +81,11 @@ fn main() -> ExitCode {
     };
 
     println!("\n-- PLAYCOUNT --");
-    let playcounts = match Playcount::iter() {
-        Some(it) => it,
+    let mut playcounts = match Playcount::iter() {
+        Some(it) => it.collect::<Vec<Playcount>>(),
         None => return ExitCode::FAILURE,
     };
-    match merge_playcount_duplicates(playcounts, cli.pretend) {
+    match merge_playcount_duplicates(&mut playcounts, cli.pretend) {
         0 => println!("No duplicate entries found"),
         n => println!("{} {} duplicate entries",
             if cli.pretend { "Detected" } else { "Merged" },
