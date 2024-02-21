@@ -23,7 +23,7 @@ impl Playlist {
     /// Returns the path to the playlists directory.
     fn dirname() -> &'static Utf8Path {
         static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-        PLAYLISTS_DIR.get_or_init(|| crate::expand_tilde("~/Music/Playlists".to_string()))
+        PLAYLISTS_DIR.get_or_init(|| crate::shellexpand_or_panic("~/Music/Playlists"))
     }
 
     /// Returns an iterator over all playlist file paths.

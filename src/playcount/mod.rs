@@ -24,8 +24,8 @@ pub struct Playcount {
 impl Playcount {
     /// Returns the path to the playcount directory.
     fn dirname() -> &'static Utf8Path {
-        static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-        PLAYLISTS_DIR.get_or_init(|| crate::expand_tilde("~/Music/.playcount".to_string()))
+        static PLAYCOUNTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
+        PLAYCOUNTS_DIR.get_or_init(|| crate::shellexpand_or_panic("~/Music/.playcount"))
     }
 
     /// Returns an iterator over all playcount file paths.

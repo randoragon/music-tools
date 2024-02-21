@@ -13,21 +13,15 @@ use std::sync::OnceLock;
 /// Returns the path to the music directory.
 pub fn dirname() -> &'static Utf8Path {
     static MUSIC_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-    MUSIC_DIR.get_or_init(|| expand_tilde("~/Music".to_string()))
+    MUSIC_DIR.get_or_init(|| shellexpand_or_panic("~/Music"))
 }
 
-/// Converts a string that might begin with `"~/"` into a path with home directory expanded.
-/// Works by looking up the HOME environment variable. Panics if HOME is not found.
-fn expand_tilde(str: String) -> Utf8PathBuf {
-    if str.starts_with("~/") {
-        let mut path = match std::env::var("HOME") {
-            Ok(home) => home,
-            Err(e) => panic!("Failed to read HOME: {}", e),
-        };
-        path.push_str(&str[1..]); // Note that '/' is guaranteed at str[1]
-        return Utf8PathBuf::from(path);
+/// Expands a path. Panics on any error encountered, including undefined variables.
+fn shellexpand_or_panic(path: &str) -> Utf8PathBuf {
+    match shellexpand::full(path) {
+        Ok(cow) => Utf8PathBuf::from(cow.as_ref()),
+        Err(e) => panic!("Failed to expand path '{}': {}", path, e),
     }
-    Utf8PathBuf::from(str)
 }
 
 /// Returns an iterator over directory files, with a filtering function.
