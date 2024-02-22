@@ -54,5 +54,7 @@ pub trait TracksFile {
     ///
     /// Ensures safe handling of tricky scenarios like renaming A to B and B to A, or renaming A to
     /// B and then B to C, which in a naive implementation might cause A to end up as C.
-    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()>;
+    ///
+    /// Returns the number of changed tracks (duplicate paths are counted).
+    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize;
 }

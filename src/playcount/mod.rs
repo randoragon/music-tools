@@ -259,17 +259,19 @@ impl TracksFile for Playcount {
         indices.len()
     }
 
-    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()> {
-        if edits.keys().any(|x| !self.tracks_map.contains_key(x)) {
-            return Err(anyhow!("Repath edits contain track(s) that do not appear in the playcount"));
-        }
+    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize {
+        let mut n_changed = 0usize;
         for (target_track, new_path) in edits {
+            if !self.tracks_map.contains_key(target_track) {
+                continue;
+            }
             for &index in &self.tracks_map[target_track] {
                 self.entries[index].track.path = new_path.clone();
+                n_changed += 1;
             }
             self.is_modified = true;
         }
         self.rebuild_tracks_map();
-        Ok(())
+        n_changed
     }
 }
