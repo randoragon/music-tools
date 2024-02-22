@@ -3,6 +3,7 @@ pub mod entry;
 pub use entry::Entry;
 pub use crate::tracksfile::TracksFile;
 
+use crate::dirname as music_dir;
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -28,7 +29,7 @@ impl Playcount {
     /// Returns the path to the playcount directory.
     fn dirname() -> &'static Utf8Path {
         static PLAYCOUNTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-        PLAYCOUNTS_DIR.get_or_init(|| crate::path_from(dirs::home_dir, "Music/.playcount"))
+        PLAYCOUNTS_DIR.get_or_init(|| music_dir().join(".playcount"))
     }
 
     /// Returns an iterator over all playcount file paths.

@@ -1,5 +1,6 @@
 pub use crate::tracksfile::TracksFile;
 
+use crate::dirname as music_dir;
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -26,7 +27,7 @@ impl Playlist {
     /// Returns the path to the playlists directory.
     fn dirname() -> &'static Utf8Path {
         static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
-        PLAYLISTS_DIR.get_or_init(|| crate::path_from(dirs::home_dir, "Music/Playlists"))
+        PLAYLISTS_DIR.get_or_init(|| music_dir().join("Playlists"))
     }
 
     /// Returns an iterator over all playlist file paths.
