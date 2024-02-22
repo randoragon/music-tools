@@ -172,7 +172,6 @@ impl TracksFile for Playlist {
 
     fn remove_all(&mut self, track: &Track) {
         if !self.tracks_map.contains_key(track) {
-            warn!("Attempted to remove a track that does not exist (playlist: {:?}, track: {:?})", self.name, track);
             return;
         }
         let mut indices = self.tracks_map[track].clone();

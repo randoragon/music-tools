@@ -39,6 +39,6 @@ pub trait TracksFile {
     /// Removes a track from the object, by index.
     fn remove_at(&mut self, index: usize);
 
-    /// Removes all occurrences of a track from the object.
+    /// Removes all (if any) occurrences of a track from the object.
     fn remove_all(&mut self, track: &Track);
 }
