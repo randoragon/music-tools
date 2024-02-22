@@ -63,6 +63,9 @@ impl Playlist {
             }
         }
         for (track, indices) in self.tracks_map.iter() {
+            if indices.is_empty() {
+                return false;
+            }
             if indices.iter().any(|&i| &self.tracks[i] != track) {
                 return false;
             }

@@ -67,6 +67,9 @@ impl Playcount {
             }
         }
         for (track, indices) in self.tracks_map.iter() {
+            if indices.is_empty() {
+                return false;
+            }
             if indices.iter().any(|&i| &self.entries[i].track != track) {
                 return false;
             }
