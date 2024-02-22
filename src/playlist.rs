@@ -30,6 +30,18 @@ impl Playlist {
         PLAYLISTS_DIR.get_or_init(|| music_dir().join("Playlists"))
     }
 
+    // Pushes a new track to the end of the playlist.
+    pub fn push(&mut self, track: Track) {
+        if self.tracks_map.contains_key(&track) {
+            self.tracks_map.get_mut(&track).unwrap().push(self.tracks.len());
+        } else {
+            self.tracks_map.insert(track.clone(), vec![self.tracks.len()]);
+        }
+        self.tracks.push(track);
+        self.is_modified = true;
+        debug_assert!(self.verify_integrity());
+    }
+
     /// Returns an iterator over all playlist file paths.
     fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
