@@ -12,6 +12,7 @@ use log::{warn, error};
 use std::collections::{HashSet, HashMap};
 use std::fs::File;
 use std::io::{BufRead, Write};
+use std::mem::drop;
 use std::process::{ExitCode, Command};
 
 #[derive(Parser)]
@@ -44,44 +45,34 @@ fn merge_playcount_duplicates(playcounts: &mut Vec<Playcount>) -> usize {
 }
 
 /// Finds invalid tracks in a tracks file. Found tracks are inserted into `set`.
-/// The indices of files containing invalid tracks are inserted into `map`, with corresponding
-/// vectors of indices to invalid tracks within.
+/// A summary of all found paths is written to a log file.
 /// Returns the total number of invalid tracks found across all files.
 fn find_invalid_tracks<T: TracksFile>(
     files: &[T],
     set: &mut HashSet<Track>,
-    map: &mut HashMap<usize, Vec<usize>>,
+    log_file: &mut File,
 ) -> usize {
     let mut invalid_count = 0usize;
-    for (i, file) in files.iter().enumerate() {
-        for (j, invalid_track) in file.tracks_unique().filter(|&x| !x.path.exists()).enumerate() {
+    for file in files {
+        let mut printed_header = false;
+        for invalid_track in file.tracks_unique().filter(|&x| !x.path.exists()) {
             set.insert(invalid_track.clone());
-            map.entry(i).or_default().push(j);
             invalid_count += 1;
-        }
-    }
-    invalid_count
-}
 
-/// Writes a summary of invalid paths to an open file.
-fn write_invalid_paths_summary<F: Write, T: TracksFile>(
-    out_file: &mut F,
-    map: &HashMap<usize, Vec<usize>>,
-    files: &[T],
-) {
-    for (&file_idx, tracks) in map {
-        let file = &files[file_idx];
-        let prefixless_filepath = file.path().strip_prefix(music_dir()).unwrap_or(file.path());
-        if let Err(e) = writeln!(out_file, "{}", prefixless_filepath) {
-            warn!("Failed to append line to log file: {}", e);
-        }
-        for &track_idx in tracks {
-            let track = file.tracks().nth(track_idx).unwrap();
-            if let Err(e) = writeln!(out_file, "\t{}", track.path) {
-                warn!("Failed to append line to log file: {}", e);
+            // Write to log file
+            if !printed_header {
+                let header = file.path().strip_prefix(music_dir()).unwrap_or(file.path());
+                if let Err(e) = writeln!(log_file, "{}", header) {
+                    error!("Failed to append line to log file: {}", e);
+                }
+                printed_header = true;
+            }
+            if let Err(e) = writeln!(log_file, "\t{}", invalid_track.path) {
+                error!("Failed to append line to log file: {}", e);
             }
         }
     }
+    invalid_count
 }
 
 /// Interactively asks user what to do with each invalid path.
@@ -232,8 +223,15 @@ fn main() -> ExitCode {
 
     // For storing invalid path information to be written to the log file.
     let mut invalid_tracks = HashSet::<Track>::new();
-    let mut invalid_playlists = HashMap::<usize, Vec::<usize>>::new();
-    let mut invalid_playcounts = HashMap::<usize, Vec::<usize>>::new();
+
+    // Open log file for writing invalid paths summary to
+    let mut log_file = match File::create(&log_path) {
+        Ok(file) => file,
+        Err(e) => {
+            warn!("Failed to open '{}' for writing: {}", log_path, e);
+            return ExitCode::FAILURE;
+        }
+    };
 
     println!("-- PLAYLISTS --");
 
@@ -250,7 +248,7 @@ fn main() -> ExitCode {
     };
 
     // Find invalid playlist tracks
-    match find_invalid_tracks(&playlists, &mut invalid_tracks, &mut invalid_playlists) {
+    match find_invalid_tracks(&playlists, &mut invalid_tracks, &mut log_file) {
         0 => println!("No invalid paths found"),
         n => println!("Detected {} invalid paths", n),
     };
@@ -271,10 +269,13 @@ fn main() -> ExitCode {
     };
 
     // Find playcount entries with invalid paths
-    match find_invalid_tracks(&playcounts, &mut invalid_tracks, &mut invalid_playcounts) {
+    match find_invalid_tracks(&playcounts, &mut invalid_tracks, &mut log_file) {
         0 => println!("No invalid paths found"),
         n => println!("Detected {} invalid paths", n),
     };
+
+    // Close the log file
+    drop(log_file);
 
     if !invalid_tracks.is_empty() {
         // Figure out which pager command to use
@@ -282,17 +283,6 @@ fn main() -> ExitCode {
             Ok(cmd) => cmd,
             _ => "less".to_string(),
         };
-
-        // Dump a summary to a log file
-        let mut log_file = match File::create(&log_path) {
-            Ok(file) => file,
-            Err(e) => {
-                warn!("Failed to open '{}' for writing: {}", log_path, e);
-                return ExitCode::FAILURE;
-            }
-        };
-        write_invalid_paths_summary(&mut log_file, &invalid_playlists, &playlists);
-        write_invalid_paths_summary(&mut log_file, &invalid_playcounts, &playcounts);
 
         // Open the log file in the pager for showcase
         match Command::new(pager).arg("--").arg(log_path).spawn() {
