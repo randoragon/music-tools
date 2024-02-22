@@ -47,7 +47,8 @@ pub trait TracksFile {
     fn remove_at(&mut self, index: usize);
 
     /// Removes all (if any) occurrences of a track from the object.
-    fn remove_all(&mut self, track: &Track);
+    /// Returns the number of tracks removed.
+    fn remove_all(&mut self, track: &Track) -> usize;
 
     /// Modify the path of a subset of tracks at the same time.
     ///

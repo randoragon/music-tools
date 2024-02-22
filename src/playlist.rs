@@ -197,9 +197,9 @@ impl TracksFile for Playlist {
         debug_assert!(self.verify_integrity());
     }
 
-    fn remove_all(&mut self, track: &Track) {
+    fn remove_all(&mut self, track: &Track) -> usize {
         if !self.tracks_map.contains_key(track) {
-            return;
+            return 0;
         }
         let mut indices = self.tracks_map[track].clone();
         indices.sort_unstable();
@@ -207,6 +207,7 @@ impl TracksFile for Playlist {
             self.remove_at(*index);
         }
         self.is_modified = true;
+        indices.len()
     }
 
     fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()> {
