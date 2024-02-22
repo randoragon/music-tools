@@ -42,6 +42,30 @@ impl Playlist {
         debug_assert!(self.verify_integrity());
     }
 
+    /// Removes all duplicate tracks from the playlist, leaving only the first occurrence of each.
+    /// Returns the number of tracks removed.
+    pub fn remove_duplicates(&mut self) -> usize {
+        // Build a list of all indices to remove
+        let mut indices = Vec::new();
+        for pos in self.tracks_map.values() {
+            if pos.len() > 1 {
+                indices.extend_from_slice(&pos[1..]);
+            }
+        }
+
+        let n_duplicates = indices.len();
+
+        // Remove the indices
+        if !indices.is_empty() {
+            indices.sort_unstable();
+            indices.into_iter().rev().for_each(|x| self.remove_at(x));
+            self.is_modified = true;
+        }
+        debug_assert!(self.verify_integrity());
+
+        n_duplicates
+    }
+
     /// Returns an iterator over all playlist file paths.
     fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
