@@ -36,6 +36,20 @@ impl Playcount {
         )
     }
 
+    /// Clears `track_map`, iterates through `tracks` and rebuilds it.
+    fn rebuild_tracks_map(&mut self) {
+        self.tracks_map.clear();
+        for (i, entry) in self.entries.iter().enumerate() {
+            let track = &entry.track;
+            if self.tracks_map.contains_key(track) {
+                self.tracks_map.get_mut(track).unwrap().push(i);
+            } else {
+                self.tracks_map.insert(track.clone(), vec![i]);
+            }
+        }
+        debug_assert!(self.verify_integrity());
+    }
+
     /// Verifies the integrity of the struct. This is quite slow and intended for use with
     /// `debug_assert`.
     fn verify_integrity(&self) -> bool {
@@ -222,5 +236,18 @@ impl TracksFile for Playcount {
         for index in indices.iter().rev() {
             self.remove_at(*index);
         }
+    }
+
+    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()> {
+        if edits.keys().any(|x| !self.tracks_map.contains_key(x)) {
+            return Err(anyhow!("Repath edits contain track(s) that do not appear in the playcount"));
+        }
+        for (target_track, new_path) in edits {
+            for &index in &self.tracks_map[target_track] {
+                self.entries[index].track.path = new_path.clone();
+            }
+        }
+        self.rebuild_tracks_map();
+        Ok(())
     }
 }

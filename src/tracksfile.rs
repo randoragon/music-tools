@@ -1,6 +1,7 @@
 use crate::track::Track;
 use anyhow::Result;
 use camino::{Utf8Path, Utf8PathBuf};
+use std::collections::HashMap;
 
 /// A trait for dealing with text files containing a list of tracks.
 /// This description fits m3u playlists, but also more esoteric custom formats.
@@ -41,4 +42,10 @@ pub trait TracksFile {
 
     /// Removes all (if any) occurrences of a track from the object.
     fn remove_all(&mut self, track: &Track);
+
+    /// Modify the path of a subset of tracks at the same time.
+    ///
+    /// Ensures safe handling of tricky scenarios like renaming A to B and B to A, or renaming A to
+    /// B and then B to C, which in a naive implementation might cause A to end up as C.
+    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()>;
 }
