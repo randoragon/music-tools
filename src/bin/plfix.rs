@@ -15,6 +15,8 @@ use std::io::{BufRead, Write};
 use std::mem::drop;
 use std::process::{ExitCode, Command};
 
+const PAGER_FALLBACK: &str = "less";
+
 #[derive(Parser)]
 struct Cli {
     #[arg(short, long, help = "Show what would be fixed, but do not apply any changes")]
@@ -302,7 +304,7 @@ fn main() -> ExitCode {
         // Figure out which pager command to use
         let pager = match std::env::var("PAGER") {
             Ok(cmd) => cmd,
-            _ => "less".to_string(),
+            _ => PAGER_FALLBACK.to_string(),
         };
 
         // Open the log file in the pager for showcase
