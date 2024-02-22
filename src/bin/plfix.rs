@@ -82,8 +82,8 @@ fn find_invalid_tracks<T: TracksFile, F: Fn(&Track) -> bool>(
 /// Returns a hashmap of new track paths, and a hashset of tracks to delete.
 fn ask_resolve_invalid_paths(
     invalid_tracks: &HashSet<Track>,
-    playlists: &Vec<Playlist>,
-    playcounts: &Vec<Playcount>,
+    playlists: &[Playlist],
+    playcounts: &[Playcount],
 ) -> Result<(HashMap<Track, Utf8PathBuf>, HashSet::<Track>)> {
     let stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
