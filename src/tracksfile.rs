@@ -29,6 +29,9 @@ pub trait TracksFile {
     /// The order is undefined and arbitrary. For a defined order, see `tracks()`.
     fn tracks_unique(&self) -> impl Iterator<Item = &Track>;
 
+    /// Returns whether a track appears in the object.
+    fn contains(&self, track: &Track) -> bool;
+
     /// Returns a vector of indices at which the given track occurs.
     /// The indices are sorted in ascending order, i.e. the order in which they appear in the
     /// object.

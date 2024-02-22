@@ -183,6 +183,10 @@ impl TracksFile for Playcount {
         self.tracks_map.keys()
     }
 
+    fn contains(&self, track: &Track) -> bool {
+        self.tracks_map.contains_key(track)
+    }
+
     fn track_positions(&self, track: &Track) -> Option<&Vec<usize>> {
         self.tracks_map.get(track)
     }
