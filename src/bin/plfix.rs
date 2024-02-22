@@ -313,7 +313,7 @@ fn main() -> ExitCode {
             };
 
             // Load the ignore playlist
-            let mut ignore_playlist = match Playlist::new(Playlist::ignore_file()) {
+            let mut ignore_playlist = match Playlist::open_or_new(Playlist::ignore_file()) {
                 Ok(pl) => Some(pl),
                 Err(e) => {
                     error!("Failed to read '{}': {}", Playlist::ignore_file(), e);

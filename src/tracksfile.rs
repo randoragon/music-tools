@@ -11,8 +11,17 @@ use std::collections::HashMap;
 /// reside in known locations in the filesystem. This is an implementation detail though, as the
 /// source of the objects is not exposed in any way; what matters is the ability to iterate.
 pub trait TracksFile {
-    /// Creates a new object from file contents.
+    /// Creates a new object from existing file contents.
+    fn open<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized;
+
+    /// Creates a new empty object tied to a given path. This is the same as `open()`, except
+    /// no reading or initialization from an external file takes place. `fpath` is only given
+    /// for a potential future call to `write()`. Be careful not to overwrite an existing file!
     fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized;
+
+
+    /// Works like `open()` if the file exists, and like `new()` if it doesn't.
+    fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized;
 
     /// Returns an iterator over all objects.
     /// The objects are not all loaded into memory at once; they are created on-demand only.

@@ -123,18 +123,8 @@ impl Playlist {
 }
 
 impl TracksFile for Playlist {
-    fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
-        let mut pl = Self {
-            path: Utf8PathBuf::from(fpath.as_ref()),
-            name: String::with_capacity(64),
-            tracks: Vec::new(),
-            tracks_map: HashMap::new(),
-            is_modified: false,
-        };
-        match pl.path.file_stem() {
-            Some(name) => pl.name.push_str(name),
-            None => return Err(anyhow!("Failed to extract filename from '{:?}'", pl.path)),
-        }
+    fn open<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
+        let mut pl = Self::new(fpath)?;
 
         let file = BufReader::new(File::open(&pl.path)?);
         for line in file.lines() {
@@ -158,6 +148,28 @@ impl TracksFile for Playlist {
         Ok(pl)
     }
 
+    fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized {
+        let mut pl = Self {
+            path: Utf8PathBuf::from(fpath.as_ref()),
+            name: String::with_capacity(64),
+            tracks: Vec::new(),
+            tracks_map: HashMap::new(),
+            is_modified: false,
+        };
+        match pl.path.file_stem() {
+            Some(name) => pl.name.push_str(name),
+            None => return Err(anyhow!("Failed to extract filename from '{:?}'", pl.path)),
+        }
+        Ok(pl)
+    }
+
+    fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized {
+        match fpath.as_ref().exists() {
+            true => Self::open(fpath),
+            false => Self::new(fpath),
+        }
+    }
+
     fn iter() -> Option<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
@@ -167,7 +179,7 @@ impl TracksFile for Playlist {
             },
         };
         let it = it.filter_map(|path|
-            match Self::new(&path) {
+            match Self::open(&path) {
                 Ok(playlist) => Some(playlist),
                 Err(e) => {
                     warn!("Failed to read playlist '{:?}': {}, skipping", path, e);

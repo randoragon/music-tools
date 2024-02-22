@@ -121,13 +121,8 @@ impl Playcount {
 }
 
 impl TracksFile for Playcount {
-    fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
-        let mut pc = Self {
-            path: Utf8PathBuf::from(fpath.as_ref()),
-            entries: Vec::new(),
-            tracks_map: HashMap::new(),
-            is_modified: false,
-        };
+    fn open<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
+        let mut pc = Self::new(fpath)?;
 
         let file = BufReader::new(File::open(&pc.path)?);
         for (i, line) in file.lines().enumerate() {
@@ -157,6 +152,22 @@ impl TracksFile for Playcount {
         Ok(pc)
     }
 
+    fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
+        Ok(Self {
+            path: Utf8PathBuf::from(fpath.as_ref()),
+            entries: Vec::new(),
+            tracks_map: HashMap::new(),
+            is_modified: false,
+        })
+    }
+
+    fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized {
+        match fpath.as_ref().exists() {
+            true => Self::open(fpath),
+            false => Self::new(fpath),
+        }
+    }
+
     fn iter() -> Option<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
@@ -166,7 +177,7 @@ impl TracksFile for Playcount {
             },
         };
         let it = it.filter_map(|path|
-            match Self::new(&path) {
+            match Self::open(&path) {
                 Ok(playcount) => Some(playcount),
                 Err(e) => {
                     warn!("Failed to read playcount '{:?}': {}, skipping", path, e);
