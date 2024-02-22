@@ -1,6 +1,6 @@
 pub use crate::tracksfile::TracksFile;
 
-use crate::dirname as music_dir;
+use crate::music_dir;
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -25,7 +25,7 @@ pub struct Playlist {
 
 impl Playlist {
     /// Returns the path to the playlists directory.
-    fn dirname() -> &'static Utf8Path {
+    fn playlist_dir() -> &'static Utf8Path {
         static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
         PLAYLISTS_DIR.get_or_init(|| music_dir().join("Playlists"))
     }
@@ -76,7 +76,7 @@ impl Playlist {
     /// Returns an iterator over all playlist file paths.
     fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
-            Self::dirname(),
+            Self::playlist_dir(),
             |x| x.is_file() && x.extension().is_some_and(|y| y == "m3u")
         )
     }
@@ -174,7 +174,7 @@ impl TracksFile for Playlist {
         let it = match Self::iter_paths() {
             Ok(it) => it,
             Err(e) => {
-                error!("Failed to list the playlists directory '{:?}': {}", Self::dirname(), e);
+                error!("Failed to list the playlists directory '{:?}': {}", Self::playlist_dir(), e);
                 return None;
             },
         };

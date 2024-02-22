@@ -12,7 +12,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 /// Returns the path to the music directory.
-pub fn dirname() -> &'static Utf8Path {
+pub fn music_dir() -> &'static Utf8Path {
     static MUSIC_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
     MUSIC_DIR.get_or_init(|| path_from(dirs::home_dir, "Music"))
 }

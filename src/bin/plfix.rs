@@ -1,6 +1,6 @@
 use music_tools::{
     path_from,
-    dirname as music_dir,
+    music_dir,
     track::*,
     playlist::*,
     playcount::*,

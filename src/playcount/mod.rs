@@ -3,7 +3,7 @@ pub mod entry;
 pub use entry::Entry;
 pub use crate::tracksfile::TracksFile;
 
-use crate::dirname as music_dir;
+use crate::music_dir;
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -27,7 +27,7 @@ pub struct Playcount {
 
 impl Playcount {
     /// Returns the path to the playcount directory.
-    fn dirname() -> &'static Utf8Path {
+    fn playcount_dir() -> &'static Utf8Path {
         static PLAYCOUNTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
         PLAYCOUNTS_DIR.get_or_init(|| music_dir().join(".playcount"))
     }
@@ -35,7 +35,7 @@ impl Playcount {
     /// Returns an iterator over all playcount file paths.
     fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
-            Self::dirname(),
+            Self::playcount_dir(),
             |x| x.is_file() && x.extension().is_some_and(|y| y == "tsv")
         )
     }
@@ -172,7 +172,7 @@ impl TracksFile for Playcount {
         let it = match Self::iter_paths() {
             Ok(it) => it,
             Err(e) => {
-                error!("Failed to list the playcounts directory '{:?}': {}", Self::dirname(), e);
+                error!("Failed to list the playcounts directory '{:?}': {}", Self::playcount_dir(), e);
                 return None;
             },
         };
