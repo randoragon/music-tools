@@ -173,8 +173,21 @@ impl TracksFile for Playcount {
         // If either unwrap here fails, it means `tracks_map` got corrupt somehow
         let map_index = self.tracks_map[track].iter().position(|&x| x == index).unwrap();
         self.tracks_map.get_mut(track).unwrap().remove(map_index);
+        if self.tracks_map[track].is_empty() {
+            self.tracks_map.remove(track);
+        }
 
         self.entries.remove(index);
+
+        // Shift all higher indices down by one
+        for entry in &self.entries[index..] {
+            for i in self.tracks_map.get_mut(&entry.track).unwrap() {
+                assert!(*i != index);
+                if *i > index {
+                    *i -= 1;
+                }
+            }
+        }
     }
 
     fn remove_all(&mut self, track: &Track) {
@@ -182,7 +195,7 @@ impl TracksFile for Playcount {
             warn!("Attempted to remove a track that does not exist (playcount: {:?}, track: {:?})", self.path, track);
             return;
         }
-        let mut indices = self.tracks_map.remove(track).unwrap();
+        let mut indices = self.tracks_map[track].clone();
         indices.sort_unstable();
         for index in indices.iter().rev() {
             self.remove_at(*index);
