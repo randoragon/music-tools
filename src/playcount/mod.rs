@@ -19,6 +19,9 @@ pub struct Playcount {
 
     /// Cached index for `entries` which correspond to a given track.
     tracks_map: HashMap<Track, Vec<usize>>,
+
+    /// Whether the playcount was modified since the last `write`.
+    is_modified: bool,
 }
 
 impl Playcount {
@@ -108,6 +111,7 @@ impl Playcount {
             increments.into_iter().for_each(|(index, incr)| self.entries[index].count += incr);
             dupe_indices.sort_unstable();
             dupe_indices.into_iter().rev().for_each(|x| self.remove_at(x));
+            self.is_modified = true;
         }
 
         debug_assert!(self.verify_integrity());
@@ -121,6 +125,7 @@ impl TracksFile for Playcount {
             path: Utf8PathBuf::from(fpath.as_ref()),
             entries: Vec::new(),
             tracks_map: HashMap::new(),
+            is_modified: false,
         };
 
         let file = BufReader::new(File::open(&pc.path)?);
@@ -191,7 +196,11 @@ impl TracksFile for Playcount {
         self.tracks_map.get(track)
     }
 
-    fn write(&self) -> Result<()> {
+    fn is_modified(&self) -> bool {
+        self.is_modified
+    }
+
+    fn write(&mut self) -> Result<()> {
         let mut file = File::create(&self.path)?;
         writeln!(file, "{}",
             self.entries.iter()
@@ -199,6 +208,7 @@ impl TracksFile for Playcount {
                 .collect::<Vec<String>>()
                 .join("\n")
         )?;
+        self.is_modified = false;
         Ok(())
     }
 
@@ -228,6 +238,7 @@ impl TracksFile for Playcount {
                 }
             }
         }
+        self.is_modified = true;
         debug_assert!(self.verify_integrity());
     }
 
@@ -240,6 +251,7 @@ impl TracksFile for Playcount {
         for index in indices.iter().rev() {
             self.remove_at(*index);
         }
+        self.is_modified = true;
     }
 
     fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()> {
@@ -250,6 +262,7 @@ impl TracksFile for Playcount {
             for &index in &self.tracks_map[target_track] {
                 self.entries[index].track.path = new_path.clone();
             }
+            self.is_modified = true;
         }
         self.rebuild_tracks_map();
         Ok(())

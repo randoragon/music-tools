@@ -37,8 +37,11 @@ pub trait TracksFile {
     /// object.
     fn track_positions(&self, track: &Track) -> Option<&Vec<usize>>;
 
+    /// Returns whether the object has been modified since the last `write`.
+    fn is_modified(&self) -> bool;
+
     /// Overwrites the text file to reflect the current object state.
-    fn write(&self) -> Result<()>;
+    fn write(&mut self) -> Result<()>;
 
     /// Removes a track from the object, by index.
     fn remove_at(&mut self, index: usize);

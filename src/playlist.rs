@@ -17,6 +17,9 @@ pub struct Playlist {
 
     /// Cached index for `tracks`, to avoid linear search.
     tracks_map: HashMap<Track, Vec<usize>>,
+
+    /// Whether the playlist was modified since the last `write`.
+    is_modified: bool,
 }
 
 impl Playlist {
@@ -79,6 +82,7 @@ impl TracksFile for Playlist {
             name: String::with_capacity(64),
             tracks: Vec::new(),
             tracks_map: HashMap::new(),
+            is_modified: false,
         };
         match pl.path.file_stem() {
             Some(name) => pl.name.push_str(name),
@@ -147,7 +151,11 @@ impl TracksFile for Playlist {
         self.tracks_map.get(track)
     }
 
-    fn write(&self) -> Result<()> {
+    fn is_modified(&self) -> bool {
+        self.is_modified
+    }
+
+    fn write(&mut self) -> Result<()> {
         let mut file = File::create(&self.path)?;
         writeln!(file, "{}",
             self.tracks.iter()
@@ -155,6 +163,7 @@ impl TracksFile for Playlist {
                 .collect::<Vec<String>>()
                 .join("\n")
         )?;
+        self.is_modified = false;
         Ok(())
     }
 
@@ -184,6 +193,7 @@ impl TracksFile for Playlist {
                 }
             }
         }
+        self.is_modified = true;
         debug_assert!(self.verify_integrity());
     }
 
@@ -196,6 +206,7 @@ impl TracksFile for Playlist {
         for index in indices.iter().rev() {
             self.remove_at(*index);
         }
+        self.is_modified = true;
     }
 
     fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<()> {
@@ -206,6 +217,7 @@ impl TracksFile for Playlist {
             for &index in &self.tracks_map[target_track] {
                 self.tracks[index].path = new_path.clone();
             }
+            self.is_modified = true;
         }
         self.rebuild_tracks_map();
         Ok(())
