@@ -65,5 +65,5 @@ pub trait TracksFile {
     /// B and then B to C, which in a naive implementation might cause A to end up as C.
     ///
     /// Returns the number of changed tracks (duplicate paths are counted).
-    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize;
+    fn bulk_rename(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize;
 }

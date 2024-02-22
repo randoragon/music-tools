@@ -269,7 +269,7 @@ impl TracksFile for Playlist {
         indices.len()
     }
 
-    fn repath(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize {
+    fn bulk_rename(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize {
         let mut n_changed = 0usize;
         for (target_track, new_path) in edits {
             if !self.tracks_map.contains_key(target_track) {

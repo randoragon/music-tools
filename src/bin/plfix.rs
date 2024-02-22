@@ -335,8 +335,8 @@ fn main() -> ExitCode {
             }
 
             // Apply path edits
-            playlists.iter_mut().for_each(|x| { x.repath(&edits); });
-            playcounts.iter_mut().for_each(|x| { x.repath(&edits); });
+            playlists.iter_mut().for_each(|x| { x.bulk_rename(&edits); });
+            playcounts.iter_mut().for_each(|x| { x.bulk_rename(&edits); });
 
             // Write all modified files
             for mut playlist in playlists.into_iter().filter(|x| x.is_modified()) {
