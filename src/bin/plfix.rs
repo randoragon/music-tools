@@ -339,12 +339,12 @@ fn main() -> ExitCode {
             playcounts.iter_mut().for_each(|x| { x.repath(&edits); });
 
             // Write all modified files
-            for playlist in &mut playlists {
+            for mut playlist in playlists.into_iter().filter(|x| x.is_modified()) {
                 if let Err(e) = playlist.write() {
                     error!("Failed to write to '{}': {}", playlist.path(), e);
                 }
             }
-            for playcount in &mut playcounts {
+            for mut playcount in playcounts.into_iter().filter(|x| x.is_modified()) {
                 if let Err(e) = playcount.write() {
                     error!("Failed to write to '{}': {}", playcount.path(), e);
                 }
