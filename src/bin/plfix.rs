@@ -149,7 +149,7 @@ fn ask_resolve_invalid_paths(
             },
             "d" => {
                 deletes.insert(track.clone());
-                println!("Marking for deletion in regular playlists, ignore in playcount/history");
+                println!("Marked for deletion/ignore.");
             },
             "q" => {
                 println!("Skipping all remaining tracks.");
