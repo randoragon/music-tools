@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
 use log::warn;
 use std::fs;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::OnceLock;
 
 /// Returns the path to the music directory.
@@ -23,16 +23,20 @@ pub fn dirname() -> &'static Utf8Path {
 /// ```
 /// assert_eq!(path_from(dirs::home_dir, "my_file.txt"), "/home/user/my_file.txt");
 /// ```
-pub fn path_from<T: AsRef<Utf8Path>>(base_dir: fn() -> Option<PathBuf>, rel_path: T) -> Utf8PathBuf {
+pub fn path_from<A: AsRef<Path>, B: AsRef<Path>>(base_dir: fn() -> Option<A>, rel_path: B) -> Utf8PathBuf {
     assert!(rel_path.as_ref().is_relative(), "rel_path must be relative");
     let path =  match base_dir() {
         Some(path) => path,
         None => panic!("Failed to locate home directory"),
     };
-    assert!(path.is_absolute(), "base_dir must yield an absolute path");
-    let mut path = match path.to_str() {
+    assert!(path.as_ref().is_absolute(), "base_dir must yield an absolute path");
+    let mut path = match path.as_ref().to_str() {
         Some(str) => Utf8PathBuf::from(str),
-        None => panic!("Failed to convert home path to UTF-8 (other encodings not supported)"),
+        None => panic!("Failed to convert base_dir to UTF-8 (other encodings not supported)"),
+    };
+    let rel_path = match rel_path.as_ref().to_str() {
+        Some(path) => path,
+        None => panic!("Failed to convert rel_path to UTF-8 (other encodings not supported)"),
     };
     path.push(rel_path);
     path
