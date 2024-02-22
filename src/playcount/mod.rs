@@ -86,10 +86,7 @@ impl Playcount {
     /// Merges entries corresponding to the same track by keeping only the first one and
     /// incrementing its count by the sum of the repeated ones (which are removed).
     /// Returns the number of duplicate entries that were removed.
-    ///
-    /// If `pretend` is `true`, no modifications will be performed. This is useful for getting just
-    /// the number of duplicates.
-    pub fn merge_duplicates(&mut self, pretend: bool) -> usize {
+    pub fn merge_duplicates(&mut self) -> usize {
         // Maps self.entries indices to the amounts they should be incremented by.
         let mut increments = HashMap::<usize, usize>::new();
 
@@ -111,7 +108,7 @@ impl Playcount {
         let n_duplicates = dupe_indices.len();
 
         // Tally up count and remove duplicates
-        if !pretend && n_duplicates != 0 {
+        if n_duplicates != 0 {
             increments.into_iter().for_each(|(index, incr)| self.entries[index].count += incr);
             dupe_indices.sort_unstable();
             dupe_indices.into_iter().rev().for_each(|x| self.remove_at(x));

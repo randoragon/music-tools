@@ -30,6 +30,13 @@ impl Playlist {
         PLAYLISTS_DIR.get_or_init(|| music_dir().join("Playlists"))
     }
 
+    /// Returns the path to the ignore playlist file. This is a meta-playlist that stores invalid
+    /// paths that should not be erased from hist.* and playcount files, for historical reasons.
+    pub fn ignore_file() -> &'static Utf8Path {
+        static IGNORE_FILE: OnceLock<Utf8PathBuf> = OnceLock::new();
+        IGNORE_FILE.get_or_init(|| music_dir().join(".ignore.m3u"))
+    }
+
     // Pushes a new track to the end of the playlist.
     pub fn push(&mut self, track: Track) {
         if self.tracks_map.contains_key(&track) {
