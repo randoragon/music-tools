@@ -45,17 +45,20 @@ fn merge_playcount_duplicates(playcounts: &mut Vec<Playcount>) -> usize {
 }
 
 /// Finds invalid tracks in a tracks file. Found tracks are inserted into `set`.
+/// Invalid paths can be ignored with a custom `ignore` closure.
 /// A summary of all found paths is written to a log file.
 /// Returns the total number of invalid tracks found across all files.
-fn find_invalid_tracks<T: TracksFile>(
+fn find_invalid_tracks<T: TracksFile, F: Fn(&Track) -> bool>(
     files: &[T],
     set: &mut HashSet<Track>,
+    ignore: F,
     log_file: &mut File,
 ) -> usize {
     let mut invalid_count = 0usize;
     for file in files {
         let mut printed_header = false;
-        for invalid_track in file.tracks_unique().filter(|&x| !x.path.exists()) {
+        let it = file.tracks_unique().filter(|&x| !x.path.exists() && !ignore(x));
+        for invalid_track in it {
             set.insert(invalid_track.clone());
             invalid_count += 1;
 
@@ -172,18 +175,16 @@ fn ask_resolve_invalid_paths(
 fn remove_tracks_from_playlists(
     playlists: &mut [Playlist],
     tracks: &HashSet<Track>,
-    mut ignore_playlist: Option<&mut Playlist>,
+    ignore_playlist: &mut Playlist,
 ) {
     for playlist in playlists {
         // History playlists never get deleted from; instead, append outdated tracks
         // to the ignored meta-playlist.
         if playlist.name().starts_with("hist.") {
-            if let Some(ignore_playlist) = ignore_playlist.as_mut() {
-                for track in tracks.iter().filter(|&x| playlist.contains(x)) {
-                    ignore_playlist.push(track.clone());
-                }
-                continue;
+            for track in tracks.iter().filter(|&x| playlist.contains(x)) {
+                ignore_playlist.push(track.clone());
             }
+            continue;
         }
 
         // Delete normally from all other playlists
@@ -233,6 +234,16 @@ fn main() -> ExitCode {
         }
     };
 
+    // Load the ignore playlist
+    let mut ignore_playlist = match Playlist::open_or_new(Playlist::ignore_file()) {
+        Ok(pl) => pl,
+        Err(e) => {
+            error!("Failed to read '{}': {}", Playlist::ignore_file(), e);
+            return ExitCode::FAILURE;
+        },
+    };
+
+
     println!("-- PLAYLISTS --");
 
     // Remove playlist duplicates
@@ -248,7 +259,12 @@ fn main() -> ExitCode {
     };
 
     // Find invalid playlist tracks
-    match find_invalid_tracks(&playlists, &mut invalid_tracks, &mut log_file) {
+    match find_invalid_tracks(
+        &playlists,
+        &mut invalid_tracks,
+        |x| ignore_playlist.contains(x),
+        &mut log_file
+    ) {
         0 => println!("No invalid paths found"),
         n => println!("Detected {} invalid paths", n),
     };
@@ -269,7 +285,12 @@ fn main() -> ExitCode {
     };
 
     // Find playcount entries with invalid paths
-    match find_invalid_tracks(&playcounts, &mut invalid_tracks, &mut log_file) {
+    match find_invalid_tracks(
+        &playcounts,
+        &mut invalid_tracks,
+        |x| ignore_playlist.contains(x),
+        &mut log_file
+    ) {
         0 => println!("No invalid paths found"),
         n => println!("Detected {} invalid paths", n),
     };
@@ -302,27 +323,14 @@ fn main() -> ExitCode {
                 },
             };
 
-            // Load the ignore playlist
-            let mut ignore_playlist = match Playlist::open_or_new(Playlist::ignore_file()) {
-                Ok(pl) => Some(pl),
-                Err(e) => {
-                    error!("Failed to read '{}': {}", Playlist::ignore_file(), e);
-                    None
-                },
-            };
-
             // Remove tracks marked for deletion
-            remove_tracks_from_playlists(&mut playlists, &deletes, ignore_playlist.as_mut());
-            if let Some(ignore_playlist) = &mut ignore_playlist {
-                remove_tracks_from_playcounts(&mut playcounts, &deletes, ignore_playlist);
-            }
+            remove_tracks_from_playlists(&mut playlists, &deletes, &mut ignore_playlist);
+            remove_tracks_from_playcounts(&mut playcounts, &deletes, &mut ignore_playlist);
 
             // Update the ignore playlist
-            if let Some(mut ignore_playlist) = ignore_playlist {
-                if ignore_playlist.is_modified() {
-                    if let Err(e) = ignore_playlist.write() {
-                        error!("Failed to write to '{}': {}", ignore_playlist.path(), e);
-                    }
+            if ignore_playlist.is_modified() {
+                if let Err(e) = ignore_playlist.write() {
+                    error!("Failed to write to '{}': {}", ignore_playlist.path(), e);
                 }
             }
 
