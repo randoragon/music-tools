@@ -229,7 +229,7 @@ fn main() -> ExitCode {
     let mut log_file = match File::create(&log_path) {
         Ok(file) => file,
         Err(e) => {
-            warn!("Failed to open '{}' for writing: {}", log_path, e);
+            error!("Failed to open '{}' for writing: {}", log_path, e);
             return ExitCode::FAILURE;
         }
     };
