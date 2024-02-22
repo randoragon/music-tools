@@ -36,6 +36,26 @@ impl Playcount {
         )
     }
 
+    /// Verifies the integrity of the struct. This is quite slow and intended for use with
+    /// `debug_assert`.
+    fn verify_integrity(&self) -> bool {
+        for (i, entry) in self.entries.iter().enumerate() {
+            let track = &entry.track;
+            if !self.tracks_map.contains_key(track) {
+                return false;
+            }
+            if !self.tracks_map[track].contains(&i) {
+                return false;
+            }
+        }
+        for (track, indices) in self.tracks_map.iter() {
+            if indices.iter().any(|&i| &self.entries[i].track != track) {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Returns an iterator to all entries in the playcount, in order of appearance.
     /// Note that several entries may refer to the same track.
     pub fn entries(&self) -> impl Iterator<Item = &Entry> {
@@ -76,6 +96,7 @@ impl Playcount {
             dupe_indices.into_iter().rev().for_each(|x| self.remove_at(x));
         }
 
+        debug_assert!(self.verify_integrity());
         n_duplicates
     }
 }
@@ -112,6 +133,7 @@ impl TracksFile for Playcount {
                 pc.entries.push(entry);
             }
         }
+        debug_assert!(pc.verify_integrity());
         Ok(pc)
     }
 
@@ -188,6 +210,7 @@ impl TracksFile for Playcount {
                 }
             }
         }
+        debug_assert!(self.verify_integrity());
     }
 
     fn remove_all(&mut self, track: &Track) {

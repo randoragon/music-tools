@@ -34,6 +34,25 @@ impl Playlist {
         )
     }
 
+    /// Verifies the integrity of the struct. This is quite slow and intended for use with
+    /// `debug_assert`.
+    fn verify_integrity(&self) -> bool {
+        for (i, track) in self.tracks.iter().enumerate() {
+            if !self.tracks_map.contains_key(track) {
+                return false;
+            }
+            if !self.tracks_map[track].contains(&i) {
+                return false;
+            }
+        }
+        for (track, indices) in self.tracks_map.iter() {
+            if indices.iter().any(|&i| &self.tracks[i] != track) {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Returns the playlist name.
     pub fn name(&self) -> &String {
         &self.name
@@ -71,6 +90,7 @@ impl TracksFile for Playlist {
                 pl.tracks.push(track);
             }
         }
+        debug_assert!(pl.verify_integrity());
         Ok(pl)
     }
 
@@ -147,6 +167,7 @@ impl TracksFile for Playlist {
                 }
             }
         }
+        debug_assert!(self.verify_integrity());
     }
 
     fn remove_all(&mut self, track: &Track) {
