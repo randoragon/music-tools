@@ -235,8 +235,10 @@ fn ask_resolve_invalid_paths(
             "e" =>
                 match edit_method(track, &mut ans) {
                     Some(new_path) => {
-                        edits.insert(track.clone(), new_path);
                         println!("Path accepted.");
+                        println!("Old: '{}'", track.path);
+                        println!("New: '{}'", new_path);
+                        edits.insert(track.clone(), new_path);
                     },
                     None => println!("Skipping"),
                 },
