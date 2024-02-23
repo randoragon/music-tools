@@ -8,7 +8,7 @@ use music_tools::{
 use anyhow::Result;
 use camino::Utf8PathBuf;
 use clap::Parser;
-use log::{warn, error};
+use log::{error, info, warn};
 use std::collections::{HashSet, HashMap};
 use std::fs::File;
 use std::io::{self, BufRead, Write};
@@ -277,6 +277,7 @@ fn remove_tracks_from_playlists(
         // to the ignored meta-playlist.
         if playlist.name().starts_with("hist.") {
             for track in tracks.iter().filter(|&x| playlist.contains(x)) {
+                info!("Adding '{}' to ignore", track.path);
                 ignore_playlist.push(track.clone());
             }
             continue;
@@ -284,7 +285,9 @@ fn remove_tracks_from_playlists(
 
         // Delete normally from all other playlists
         for track in tracks {
-            playlist.remove_all(track);
+            if playlist.remove_all(track) > 0 {
+                info!("Deleting '{}' from {}", track.path, playlist.name());
+            }
         }
     }
 }
@@ -296,6 +299,7 @@ fn remove_tracks_from_playcounts(
 ) {
     for playcount in playcounts {
         for track in tracks.iter().filter(|&x| playcount.contains(x)) {
+            info!("Adding '{}' to ignore", track.path);
             ignore_playlist.push(track.clone());
         }
     }
