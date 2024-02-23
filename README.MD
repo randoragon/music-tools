@@ -7,7 +7,9 @@ public in mind. The conventions are listed below. Use at your own risk.
 
 ## Features
 
-TODO
+1. `plfix`
+    - Remove redundant duplicate lines from playlist/playcount files.
+    - Detect invalid paths and offer to interactively fix them.
 
 ## Conventions
 
