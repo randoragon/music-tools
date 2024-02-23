@@ -144,6 +144,13 @@ impl TracksFile for Playlist {
                 pl.tracks.push(track);
             }
         }
+
+        // Don't represent empty files with a single empty track
+        if pl.tracks.len() == 1 && pl.tracks[0].path.as_str().is_empty() {
+            pl.tracks.clear();
+            pl.tracks_map.clear();
+        }
+
         debug_assert!(pl.verify_integrity());
         Ok(pl)
     }
