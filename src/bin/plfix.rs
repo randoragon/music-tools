@@ -427,6 +427,7 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 },
             };
+            println!("");
 
             // Remove tracks marked for deletion
             remove_tracks_from_playlists(&mut playlists, &deletes, &mut ignore_playlist);
@@ -442,6 +443,9 @@ fn main() -> ExitCode {
             // Apply path edits
             playlists.iter_mut().for_each(|x| { x.bulk_rename(&edits); });
             playcounts.iter_mut().for_each(|x| { x.bulk_rename(&edits); });
+            for (track, new_path) in edits {
+                info!("Renamed '{}' -> '{}'", track.path, new_path);
+            }
 
             // Write all modified files
             for mut playlist in playlists.into_iter().filter(|x| x.is_modified()) {
