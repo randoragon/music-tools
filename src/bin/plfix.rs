@@ -127,26 +127,34 @@ fn ask_resolve_invalid_paths(
             };
         }
 
+        /// Basic, fool-proof method of getting a new path
+        fn edit_basic(ans: &mut String) -> Result<Utf8PathBuf> {
+            let stdin = std::io::stdin();
+            let mut stdout = std::io::stdout();
+            print!("New path (leave empty to skip): {}/", music_dir());
+            stdout.flush()?;
+            ans.clear();
+            let mut new_path: Option<Utf8PathBuf> = None;
+            while ans.is_empty() {
+                stdin.lock().read_line(ans)?;
+                let path = Utf8PathBuf::from(ans.trim_end());
+                if path.exists() && path.is_file() && path.is_relative() {
+                    new_path = Some(path);
+                } else {
+                    print!("Invalid path. Try again: {}/", music_dir());
+                    stdout.flush()?;
+                    ans.clear();
+                }
+            }
+            Ok(new_path.unwrap())
+        }
+
         // Execute action
         match ans.trim_end() {
             "s" | "" => println!("Skipping."),
             "e" => {
-                print!("New path (leave empty to skip): {}/", music_dir());
-                stdout.flush()?;
-                ans.clear();
-                let mut new_path: Option<Utf8PathBuf> = None;
-                while ans.is_empty() {
-                    stdin.lock().read_line(&mut ans)?;
-                    let path = Utf8PathBuf::from(ans.trim_end());
-                    if path.exists() && path.is_file() && path.is_relative() {
-                        new_path = Some(path);
-                    } else {
-                        print!("Invalid path. Try again: {}/", music_dir());
-                        stdout.flush()?;
-                        ans.clear();
-                    }
-                }
-                edits.insert(track.clone(), new_path.unwrap());
+                let new_path = edit_basic(&mut ans)?;
+                edits.insert(track.clone(), new_path);
                 println!("Path accepted.");
             },
             "d" => {
