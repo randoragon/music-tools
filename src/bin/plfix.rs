@@ -156,7 +156,7 @@ fn ask_resolve_invalid_paths(
                 .arg("-i")
                 .arg(format!("--query={}", query))
                 .arg("--bind=ctrl-d:half-page-down,ctrl-u:half-page-up,ctrl-l:clear-query")
-                .arg(format!("--header={}", track.path.to_string()))
+                .arg(format!("--header={}", track.path))
                 .stdout(Stdio::piped())
                 .spawn();
             let proc = match cmd {
