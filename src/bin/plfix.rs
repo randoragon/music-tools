@@ -160,8 +160,18 @@ fn ask_resolve_invalid_paths(
 
         /// Relies on fzf command to get a new path.
         fn edit_fzf(track: &Track, _ans: &mut String) -> Option<Utf8PathBuf> {
+            let query = track.path
+                .file_stem()
+                .unwrap_or_default()
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric() || c.is_whitespace())
+                .collect::<String>()
+                .to_lowercase();
             let cmd = Command::new("fzf")
                 .arg("+m")
+                .arg("-i")
+                .arg(format!("--query={}", query))
+                .arg("--bind=ctrl-d:half-page-down,ctrl-u:half-page-up,ctrl-l:clear-query")
                 .arg(format!("--header={}", track.path.to_string()))
                 .stdout(Stdio::piped())
                 .spawn();
