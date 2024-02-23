@@ -13,7 +13,7 @@ use std::collections::{HashSet, HashMap};
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 use std::mem::drop;
-use std::process::{ExitCode, Command};
+use std::process::{ExitCode, Command, Stdio};
 
 const PAGER_FALLBACK: &str = "less";
 
@@ -157,6 +157,67 @@ fn ask_resolve_invalid_paths(
             }
             Some(new_path.unwrap())
         }
+
+        /// Relies on fzf command to get a new path.
+        fn edit_fzf(track: &Track, _ans: &mut String) -> Option<Utf8PathBuf> {
+            let cmd = Command::new("fzf")
+                .arg("+m")
+                .arg(format!("--header={}", track.path.to_string()))
+                .stdout(Stdio::piped())
+                .spawn();
+            let proc = match cmd {
+                Ok(child) => child,
+                Err(e) => {
+                    error!("Failed to run fzf: {}", e);
+                    return None;
+                },
+            };
+            let output = match proc.wait_with_output() {
+                Ok(out) => out,
+                Err(e) => {
+                    error!("Failed to collect fzf output: {}", e);
+                    return None;
+                }
+            };
+            if output.status.success() {
+                let path = match String::from_utf8(output.stdout) {
+                    Ok(str) => Utf8PathBuf::from(str.trim_end()),
+                    Err(e) => {
+                        error!("Failed to convert fzf output to UTF-8: {}", e);
+                        return None;
+                    }
+                };
+                if path.exists() && path.is_file() && path.is_relative() {
+                    Some(path)
+                } else {
+                    warn!("fzf printed an invalid path '{}'. This is rather unlikely.", path);
+                    None
+                }
+            } else {
+                // From fzf(1) EXIT STATUS section (fzf 0.46.1, Feb 2024)
+                match output.status.code() {
+                    Some(1) => { warn!("fzf exited with 2 (No match)"); None },
+                    Some(2) => { warn!("fzf exited with 2 (Error)"); None },
+                    Some(130) => {
+                        // User pressed ESC or Ctrl-C, treat as intentional skip
+                        None
+                    },
+                    Some(n) => { warn!("fzf exited with {n} (cause unknown)"); None },
+                    None => { warn!("fzf received an external signal"); None },
+                }
+            }
+        }
+
+        // Check if fzf is available
+        let check_fzf_cmd = Command::new("sh").arg("-c")
+            .arg("command").arg("-v").arg("fzf").status();
+        let edit_method = match check_fzf_cmd {
+            Ok(status) => if status.success() { edit_fzf } else { edit_basic },
+            Err(e) => {
+                warn!("Failed to run 'sh -c command -v fzf': {}", e);
+                edit_basic
+            },
+        };
 
         // Execute action
         match ans.trim_end() {
