@@ -94,7 +94,7 @@ fn ask_resolve_invalid_paths(
     let mut edits = HashMap::<Track, Utf8PathBuf>::new();
     let mut deletes = HashSet::<Track>::new();
 
-    for (i, track) in invalid_tracks.iter().enumerate() {
+    'outer: for (i, track) in invalid_tracks.iter().enumerate() {
         // Aux buffer for storing user input - will automatically grow if needed
         let mut ans = String::with_capacity(64);
 
@@ -110,22 +110,6 @@ fn ask_resolve_invalid_paths(
             .filter(|&x| x.contains(track))
             .map(|x| x.path().file_name().unwrap_or(x.path().as_str()).to_string()));
         println!("{}", appearances.join(", "));
-        print!("[s]kip, [e]dit, [d]elete/ignore, [q]uit, a[b]ort  (default: skip): ");
-        stdout.flush()?;
-
-        // Let user choose action
-        ans.clear();
-        while ans.is_empty() {
-            stdin.lock().read_line(&mut ans)?;
-            match ans.trim_end() {
-                "" | "s" | "e" | "d" | "q" | "b" => (),
-                _ => {
-                    print!("Please choose one of: s, e, d, q, b: ");
-                    stdout.flush()?;
-                    ans.clear();
-                },
-            };
-        }
 
         /// Basic, fool-proof method of getting a new path.
         fn edit_basic(_track: &Track, ans: &mut String) -> Option<Utf8PathBuf> {
@@ -229,34 +213,55 @@ fn ask_resolve_invalid_paths(
             },
         };
 
-        // Execute action
-        match ans.trim_end() {
-            "s" | "" => println!("Skipping."),
-            "e" =>
-                match edit_method(track, &mut ans) {
-                    Some(new_path) => {
-                        println!("Path accepted.");
-                        println!("Old: '{}'", track.path);
-                        println!("New: '{}'", new_path);
-                        edits.insert(track.clone(), new_path);
+        let mut was_decision_made = false;
+        while !was_decision_made {
+            print!("[s]kip, [e]dit, [d]elete/ignore, [q]uit, a[b]ort  (default: skip): ");
+            stdout.flush()?;
+
+            // Let user choose action
+            ans.clear();
+            while ans.is_empty() {
+                stdin.lock().read_line(&mut ans)?;
+                match ans.trim_end() {
+                    "" | "s" | "e" | "d" | "q" | "b" => (),
+                    _ => {
+                        print!("Please choose one of: s, e, d, q, b: ");
+                        stdout.flush()?;
+                        ans.clear();
                     },
-                    None => println!("Skipping"),
+                };
+            }
+
+            // Execute action
+            was_decision_made = true;
+            match ans.trim_end() {
+                "s" | "" => println!("Skipping."),
+                "e" =>
+                    match edit_method(track, &mut ans) {
+                        Some(new_path) => {
+                            println!("Path accepted.");
+                            println!("Old: '{}'", track.path);
+                            println!("New: '{}'", new_path);
+                            edits.insert(track.clone(), new_path);
+                        },
+                        None => { was_decision_made = false; },
+                    },
+                "d" => {
+                    deletes.insert(track.clone());
+                    println!("Marked for deletion/ignore.");
                 },
-            "d" => {
-                deletes.insert(track.clone());
-                println!("Marked for deletion/ignore.");
-            },
-            "q" => {
-                println!("Skipping all remaining tracks.");
-                break;
-            },
-            "b" => {
-                println!("Abort - discarding all changes.");
-                edits.clear();
-                deletes.clear();
-                break;
-            },
-            _ => unreachable!(),
+                "q" => {
+                    println!("Skipping all remaining tracks.");
+                    break 'outer;
+                },
+                "b" => {
+                    println!("Abort - discarding all changes.");
+                    edits.clear();
+                    deletes.clear();
+                    break 'outer;
+                },
+                _ => unreachable!(),
+            }
         }
     }
     assert!(edits.keys().all(|x| !deletes.contains(x)), "edits and deletes must be disjoint");
