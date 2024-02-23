@@ -127,36 +127,48 @@ fn ask_resolve_invalid_paths(
             };
         }
 
-        /// Basic, fool-proof method of getting a new path
-        fn edit_basic(ans: &mut String) -> Result<Utf8PathBuf> {
+        /// Basic, fool-proof method of getting a new path.
+        fn edit_basic(_track: &Track, ans: &mut String) -> Option<Utf8PathBuf> {
             let stdin = io::stdin();
             let mut stdout = io::stdout();
             print!("New path (leave empty to skip): {}/", music_dir());
-            stdout.flush()?;
+            if let Err(e) = stdout.flush() {
+                error!("Failed to flush stdout: {}", e);
+                return None;
+            };
             ans.clear();
             let mut new_path: Option<Utf8PathBuf> = None;
             while ans.is_empty() {
-                stdin.lock().read_line(ans)?;
+                if let Err(e) = stdin.lock().read_line(ans) {
+                    error!("Failed to convert input to UTF-8: {}", e);
+                    return None;
+                }
                 let path = Utf8PathBuf::from(ans.trim_end());
                 if path.exists() && path.is_file() && path.is_relative() {
                     new_path = Some(path);
                 } else {
                     print!("Invalid path. Try again: {}/", music_dir());
-                    stdout.flush()?;
+                    if let Err(e) = stdout.flush() {
+                        error!("Failed to flush stdout: {}", e);
+                        return None;
+                    };
                     ans.clear();
                 }
             }
-            Ok(new_path.unwrap())
+            Some(new_path.unwrap())
         }
 
         // Execute action
         match ans.trim_end() {
             "s" | "" => println!("Skipping."),
-            "e" => {
-                let new_path = edit_basic(&mut ans)?;
-                edits.insert(track.clone(), new_path);
-                println!("Path accepted.");
-            },
+            "e" =>
+                match edit_method(track, &mut ans) {
+                    Some(new_path) => {
+                        edits.insert(track.clone(), new_path);
+                        println!("Path accepted.");
+                    },
+                    None => println!("Skipping"),
+                },
             "d" => {
                 deletes.insert(track.clone());
                 println!("Marked for deletion/ignore.");
