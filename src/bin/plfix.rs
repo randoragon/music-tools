@@ -11,7 +11,7 @@ use clap::Parser;
 use log::{warn, error};
 use std::collections::{HashSet, HashMap};
 use std::fs::File;
-use std::io::{BufRead, Write};
+use std::io::{self, BufRead, Write};
 use std::mem::drop;
 use std::process::{ExitCode, Command};
 
@@ -87,8 +87,8 @@ fn ask_resolve_invalid_paths(
     playlists: &[Playlist],
     playcounts: &[Playcount],
 ) -> Result<(HashMap<Track, Utf8PathBuf>, HashSet::<Track>)> {
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout();
+    let stdin = io::stdin();
+    let mut stdout = io::stdout();
 
     // For remembering user decisions
     let mut edits = HashMap::<Track, Utf8PathBuf>::new();
@@ -129,8 +129,8 @@ fn ask_resolve_invalid_paths(
 
         /// Basic, fool-proof method of getting a new path
         fn edit_basic(ans: &mut String) -> Result<Utf8PathBuf> {
-            let stdin = std::io::stdin();
-            let mut stdout = std::io::stdout();
+            let stdin = io::stdin();
+            let mut stdout = io::stdout();
             print!("New path (leave empty to skip): {}/", music_dir());
             stdout.flush()?;
             ans.clear();
