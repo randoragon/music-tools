@@ -415,7 +415,6 @@ fn main() -> ExitCode {
             Err(e) => warn!("Failed to run the pager: {}", e),
         };
 
-        let mut anything_changed = false;
         if !cli.pretend {
             // Interactively decide how to fix the paths
             println!("\nFixing {} paths:", invalid_tracks.len());
@@ -446,27 +445,30 @@ fn main() -> ExitCode {
             for (track, new_path) in edits {
                 info!("Renamed '{}' -> '{}'", track.path, new_path);
             }
-
-            // Write all modified files
-            for mut playlist in playlists.into_iter().filter(|x| x.is_modified()) {
-                if let Err(e) = playlist.write() {
-                    error!("Failed to write to '{}': {}", playlist.path(), e);
-                }
-                anything_changed = true;
-            }
-            for mut playcount in playcounts.into_iter().filter(|x| x.is_modified()) {
-                if let Err(e) = playcount.write() {
-                    error!("Failed to write to '{}': {}", playcount.path(), e);
-                }
-                anything_changed = true;
-            }
         }
+    }
 
-        if anything_changed {
-            println!("\nSuccessfully written all changes.");
-        } else {
-            println!("\nNo changes made.");
+    // Write all modified files
+    let mut anything_changed = false;
+    if !cli.pretend {
+        for mut playlist in playlists.into_iter().filter(|x| x.is_modified()) {
+            if let Err(e) = playlist.write() {
+                error!("Failed to write to '{}': {}", playlist.path(), e);
+            }
+            anything_changed = true;
         }
+        for mut playcount in playcounts.into_iter().filter(|x| x.is_modified()) {
+            if let Err(e) = playcount.write() {
+                error!("Failed to write to '{}': {}", playcount.path(), e);
+            }
+            anything_changed = true;
+        }
+    }
+
+    if anything_changed {
+        println!("\nSuccessfully written all changes.");
+    } else {
+        println!("\nNo changes made.");
     }
 
     ExitCode::SUCCESS
