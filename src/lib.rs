@@ -20,7 +20,7 @@ pub fn music_dir() -> &'static Utf8Path {
 /// Constructs a path by concatenating a `dirs::*` function output and an arbitrary relative path.
 ///
 /// # Examples
-/// ```
+/// ```ignore
 /// assert_eq!(path_from(dirs::home_dir, "my_file.txt"), "/home/user/my_file.txt");
 /// ```
 pub fn path_from<A: AsRef<Path>, B: AsRef<Path>>(base_dir: fn() -> Option<A>, rel_path: B) -> Utf8PathBuf {

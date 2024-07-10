@@ -143,6 +143,7 @@ fn ask_resolve_invalid_paths(
         }
 
         /// Relies on fzf command to get a new path.
+        #[allow(clippy::ptr_arg)]
         fn edit_fzf(track: &Track, _ans: &mut String) -> Option<Utf8PathBuf> {
             let query = track.path
                 .file_stem()
@@ -426,7 +427,7 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 },
             };
-            println!("");
+            println!();
 
             // Remove tracks marked for deletion
             remove_tracks_from_playlists(&mut playlists, &deletes, &mut ignore_playlist);
