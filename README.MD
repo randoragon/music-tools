@@ -113,14 +113,15 @@ My music player, [ncmpcpp](https://github.com/ncmpcpp/ncmpcpp), allows me to run
 a [custom script](https://github.com/Randoragon/dotfiles/blob/master/scripts/.scripts/ncmpcpp-song-change.sh) on song change. I use this to keep a history of played tracks
 and count how many each was played. The history is kept in `hist.*.m3u` playlists,
 as listed in the previous section's table. The playcounts are stored per-month
-inside a `~/Music/.playcount/` directory in a simple plain-text format, e.g.:
+inside a `~/Music/.playcount/` directory in a plain-text format, with each line
+holding 5 tab-seperated values: `[duration, artist, album, title, path]`
 
 ```
 ~/Music/.playcount/2023-06.tsv:
-2	Rage Against the Machine/Renegades/Renegades of Funk.mp3
-4	The Beatles/Hey Jude/Hey Jude.mp3
-1	LCD Soundsystem/London Sessions/Daft Punk Is Playing at My House.mp3
-1	BRADIO/DIAMOND POPS/Golden Liar.mp3
+274.2	Rage Against the Machine	Renegades	Renegades Of Funk	Rage Against the Machine/Renegades/Renegades Of Funk.mp3
+428.56488	The Beatles	Hey Jude	Hey Jude	The Beatles/Hey Jude/Hey Jude.mp3
+303.648	LCD Soundsystem	London Sessions	Daft Punk Is Playing at My House	LCD Soundsystem/London Sessions/Daft Punk Is Playing at My House.mp3
+194.016	BRADIO	DIAMOND POPS	Golden Liar	BRADIO/DIAMOND POPS/Golden Liar.mp3
 ...
 ```
 
