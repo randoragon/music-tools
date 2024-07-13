@@ -36,16 +36,6 @@ fn remove_playlist_duplicates(playlists: &mut Vec<Playlist>) -> usize {
     n_duplicates
 }
 
-/// Merges duplicate entries in playcounts. The indices of affected playcounts are added to a set.
-/// Returnes the number of removed entries.
-fn merge_playcount_duplicates(playcounts: &mut Vec<Playcount>) -> usize {
-    let mut n_duplicates = 0usize;
-    for playcount in playcounts {
-        n_duplicates += playcount.merge_duplicates();
-    }
-    n_duplicates
-}
-
 /// Finds invalid tracks in a tracks file. Found tracks are inserted into `set`.
 /// Invalid paths can be ignored with a custom `ignore` closure.
 /// A summary of all found paths is written to a log file.
@@ -377,19 +367,11 @@ fn main() -> ExitCode {
 
     println!("\n-- PLAYCOUNT --");
 
-    // Remove playcount duplicates
+    // Find playcount entries with invalid paths
     let mut playcounts = match Playcount::iter() {
         Some(it) => it.collect::<Vec<Playcount>>(),
         None => return ExitCode::FAILURE,
     };
-    match merge_playcount_duplicates(&mut playcounts) {
-        0 => println!("No duplicate entries found"),
-        n => println!("{} {} duplicate entries",
-            if cli.pretend { "Detected" } else { "Merged" },
-            n),
-    };
-
-    // Find playcount entries with invalid paths
     match find_invalid_tracks(
         &playcounts,
         &mut invalid_tracks,
@@ -441,10 +423,23 @@ fn main() -> ExitCode {
             }
 
             // Apply path edits
-            playlists.iter_mut().for_each(|x| { x.bulk_rename(&edits); });
-            playcounts.iter_mut().for_each(|x| { x.bulk_rename(&edits); });
-            for (track, new_path) in edits {
-                info!("Renamed '{}' -> '{}'", track.path, new_path);
+            if !edits.is_empty() {
+                println!("\nRenaming paths:");
+                for (track, new_path) in &edits {
+                    println!("  '{}' -> '{}'", track.path, new_path);
+                }
+                playlists.iter_mut().for_each(|x|
+                    match x.bulk_rename(&edits) {
+                        Ok(n) => if n != 0 { info!("Renamed {n} entries in '{}'", x.path()); },
+                        Err(e) => error!("Failed to bulk rename '{}': {}", x.path(), e),
+                    }
+                );
+                playcounts.iter_mut().for_each(|x|
+                    match x.bulk_rename(&edits) {
+                        Ok(n) => if n != 0 { info!("Renamed {n} entries in '{}'", x.path()); },
+                        Err(e) => error!("Failed to bulk rename '{}': {}", x.path(), e),
+                    }
+                );
             }
         }
     }
