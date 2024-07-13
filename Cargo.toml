@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.80"
 camino = "1.1.6"
+chrono = "0.4.38"
 clap = { version = "4.5.1", features = ["derive"] }
 dirs = "5.0.1"
 id3 = "1.12.0"
