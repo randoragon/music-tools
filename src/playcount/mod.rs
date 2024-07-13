@@ -3,7 +3,7 @@ pub mod entry;
 pub use entry::Entry;
 pub use crate::tracksfile::TracksFile;
 
-use crate::music_dir;
+use crate::{music_dir, path_from};
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -13,6 +13,7 @@ use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
 use std::sync::OnceLock;
 use std::time::Duration;
+use chrono::Local;
 
 #[derive(Debug)]
 pub struct Playcount {
@@ -76,6 +77,14 @@ impl Playcount {
             }
         }
         true
+    }
+
+    /// Convenience function that works like `open_or_new` on the current playcount file, based on
+    /// system time.
+    pub fn current() -> Result<Self> {
+        let playcount_fname = Local::now().format("%Y-%m.tsv").to_string();
+        let playcount_fpath = path_from(|| Some(Self::playcount_dir()), playcount_fname);
+        Self::open_or_new(playcount_fpath)
     }
 
     /// Returns an iterator to all entries in the playcount, in order of appearance.
