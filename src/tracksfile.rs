@@ -25,7 +25,7 @@ pub trait TracksFile {
 
     /// Returns an iterator over all objects.
     /// The objects are not all loaded into memory at once; they are created on-demand only.
-    fn iter() -> Option<impl Iterator<Item = Self>> where Self: Sized;
+    fn iter() -> Result<impl Iterator<Item = Self>> where Self: Sized;
 
     /// Returns the path to the text file from which the object was created.
     fn path(&self) -> &Utf8PathBuf;

@@ -4,7 +4,7 @@ use crate::music_dir;
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use log::{error, warn};
+use log::warn;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
@@ -177,13 +177,10 @@ impl TracksFile for Playlist {
         }
     }
 
-    fn iter() -> Option<impl Iterator<Item = Self>> {
+    fn iter() -> Result<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
-            Err(e) => {
-                error!("Failed to list the playlists directory '{:?}': {}", Self::playlist_dir(), e);
-                return None;
-            },
+            Err(e) => return Err(anyhow!("Failed to list the playlists directory '{:?}': {}", Self::playlist_dir(), e)),
         };
         let it = it.filter_map(|path|
             match Self::open(&path) {
@@ -194,7 +191,7 @@ impl TracksFile for Playlist {
                 },
             }
         );
-        Some(it)
+        Ok(it)
     }
 
     fn path(&self) -> &Utf8PathBuf {

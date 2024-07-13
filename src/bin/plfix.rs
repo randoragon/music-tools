@@ -343,8 +343,11 @@ fn main() -> ExitCode {
 
     // Remove playlist duplicates
     let mut playlists = match Playlist::iter() {
-        Some(it) => it.collect::<Vec<Playlist>>(),
-        None => return ExitCode::FAILURE,
+        Ok(it) => it.collect::<Vec<Playlist>>(),
+        Err(e) => {
+            error!("Failed to iterate playlists: {}", e);
+            return ExitCode::FAILURE;
+        },
     };
     match remove_playlist_duplicates(&mut playlists) {
         0 => println!("No duplicate paths found"),
@@ -369,8 +372,11 @@ fn main() -> ExitCode {
 
     // Find playcount entries with invalid paths
     let mut playcounts = match Playcount::iter() {
-        Some(it) => it.collect::<Vec<Playcount>>(),
-        None => return ExitCode::FAILURE,
+        Ok(it) => it.collect::<Vec<Playcount>>(),
+        Err(e) => {
+            error!("Failed to iterate playcounts: {}", e);
+            return ExitCode::FAILURE;
+        },
     };
     match find_invalid_tracks(
         &playcounts,
