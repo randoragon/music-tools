@@ -312,7 +312,7 @@ fn main() -> ExitCode {
         .unwrap();
 
     if let Err(e) = std::env::set_current_dir(music_dir()) {
-        println!("Failed to change directory to '{}': {}", music_dir(), e);
+        error!("Failed to change directory to '{}': {}", music_dir(), e);
         return ExitCode::FAILURE;
     }
     let log_path = path_from(dirs::data_dir, "plfix-latest.log");
