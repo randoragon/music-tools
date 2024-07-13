@@ -251,8 +251,8 @@ impl TracksFile for Playlist {
         self.tracks.remove(index);
 
         // Shift all higher indices down by one
-        for track in &self.tracks[index..] {
-            for i in self.tracks_map.get_mut(track).unwrap() {
+        for indices in self.tracks_map.values_mut() {
+            for i in indices.iter_mut() {
                 assert!(*i != index);
                 if *i > index {
                     *i -= 1;

@@ -211,8 +211,8 @@ impl TracksFile for Playcount {
         self.entries.remove(index);
 
         // Shift all higher indices down by one
-        for entry in &self.entries[index..] {
-            for i in self.tracks_map.get_mut(&entry.track).unwrap() {
+        for indices in self.tracks_map.values_mut() {
+            for i in indices.iter_mut() {
                 assert!(*i != index);
                 if *i > index {
                     *i -= 1;
