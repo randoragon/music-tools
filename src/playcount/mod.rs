@@ -35,7 +35,7 @@ impl Playcount {
     }
 
     /// Returns an iterator over all playcount file paths.
-    fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
+    pub fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
             Self::playcount_dir(),
             |x| x.is_file() && x.extension().is_some_and(|y| y == "tsv")
