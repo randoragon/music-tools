@@ -52,6 +52,13 @@ pub trait TracksFile {
     /// Overwrites the text file to reflect the current object state.
     fn write(&mut self) -> Result<()>;
 
+    /// Creates a new track from `fpath` and appends at the end of the object.
+    fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()>;
+
+    /// Removes the last occurrence of a track from the object.
+    /// Returns whether or not `track` was found.
+    fn remove_last(&mut self, track: &Track) -> bool;
+
     /// Removes a track from the object, by index.
     fn remove_at(&mut self, index: usize);
 

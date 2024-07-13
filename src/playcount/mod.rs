@@ -193,6 +193,33 @@ impl TracksFile for Playcount {
         Ok(())
     }
 
+    fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()> {
+        let entry = match Entry::new(&fpath, None, None, None, None) {
+            Ok(entry) => entry,
+            Err(e) => return Err(anyhow!("Failed to create an entry from '{}': {}", fpath.as_ref(), e)),
+        };
+
+        if let Some(v) = self.tracks_map.get_mut(&entry.track) {
+            v.push(self.entries.len());
+        } else {
+            self.tracks_map.insert(entry.track.clone(), vec![self.entries.len()]);
+        }
+        self.entries.push(entry);
+        self.is_modified = true;
+        debug_assert!(self.verify_integrity());
+        Ok(())
+    }
+
+    fn remove_last(&mut self, track: &Track) -> bool {
+        if !self.tracks_map.contains_key(track) {
+            return false;
+        }
+        let index = self.tracks_map[track].iter().max().unwrap();
+        self.remove_at(*index);
+        self.is_modified = true;
+        true
+    }
+
     fn remove_at(&mut self, index: usize) {
         if index >= self.entries.len() {
             warn!("Out-of-bounds remove_at requested (index: {}, len: {})", index, self.entries.len());

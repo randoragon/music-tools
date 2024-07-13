@@ -233,6 +233,30 @@ impl TracksFile for Playlist {
         Ok(())
     }
 
+    fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()> {
+        let track = Track::new(fpath);
+
+        if let Some(v) = self.tracks_map.get_mut(&track) {
+            v.push(self.tracks.len());
+        } else {
+            self.tracks_map.insert(track.clone(), vec![self.tracks.len()]);
+        }
+        self.tracks.push(track);
+        self.is_modified = true;
+        debug_assert!(self.verify_integrity());
+        Ok(())
+    }
+
+    fn remove_last(&mut self, track: &Track) -> bool {
+        if !self.tracks_map.contains_key(track) {
+            return false;
+        }
+        let index = self.tracks_map[track].iter().max().unwrap();
+        self.remove_at(*index);
+        self.is_modified = true;
+        true
+    }
+
     fn remove_at(&mut self, index: usize) {
         if index >= self.tracks.len() {
             warn!("Out-of-bounds remove_at requested (index: {}, len: {})", index, self.tracks.len());
