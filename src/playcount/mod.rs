@@ -12,6 +12,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
 use std::sync::OnceLock;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub struct Playcount {
@@ -81,42 +82,6 @@ impl Playcount {
     /// Note that several entries may refer to the same track.
     pub fn entries(&self) -> impl Iterator<Item = &Entry> {
         self.entries.iter()
-    }
-
-    /// Merges entries corresponding to the same track by keeping only the first one and
-    /// incrementing its count by the sum of the repeated ones (which are removed).
-    /// Returns the number of duplicate entries that were removed.
-    pub fn merge_duplicates(&mut self) -> usize {
-        // Maps self.entries indices to the amounts they should be incremented by.
-        let mut increments = HashMap::<usize, usize>::new();
-
-        // A list of all indices to remove from self.entries
-        let mut dupe_indices = Vec::new();
-
-        for track in self.tracks_unique() {
-            if let Some(pos) = self.track_positions(track) {
-                if pos.len() > 1 {
-                    dupe_indices.extend_from_slice(&pos[1..]);
-                    increments.insert(
-                        pos[0],
-                        pos[1..].iter().map(|&x| self.entries[x].count).sum(),
-                    );
-                }
-            }
-        }
-
-        let n_duplicates = dupe_indices.len();
-
-        // Tally up count and remove duplicates
-        if n_duplicates != 0 {
-            increments.into_iter().for_each(|(index, incr)| self.entries[index].count += incr);
-            dupe_indices.sort_unstable();
-            dupe_indices.into_iter().rev().for_each(|x| self.remove_at(x));
-            self.is_modified = true;
-        }
-
-        debug_assert!(self.verify_integrity());
-        n_duplicates
     }
 }
 
@@ -216,10 +181,14 @@ impl TracksFile for Playcount {
         let mut file = File::create(&self.path)?;
         writeln!(file, "{}",
             self.entries.iter()
-                .map(|x| format!("{}\t{}", x.count, x.track.path))
+                .map(|x| format!("{}\t{}\t{}\t{}\t{}",
+                    x.duration.as_secs_f32(),
+                    x.artist,
+                    x.album.as_ref().unwrap_or(&String::new()),
+                    x.title,
+                    x.track.path))
                 .collect::<Vec<String>>()
-                .join("\n")
-        )?;
+                .join("\n"))?;
         self.is_modified = false;
         Ok(())
     }
@@ -267,19 +236,46 @@ impl TracksFile for Playcount {
         indices.len()
     }
 
-    fn bulk_rename(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize {
+    fn bulk_rename(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<usize> {
+        // Make sure all metadata can be pulled from target paths in advance
+        // to guarantee either all or no renames get applied.
+        let mut new_entries = HashMap::<&Utf8PathBuf, Entry>::new();
+        for (target_track, new_path) in edits {
+            if !self.tracks_map.contains_key(target_track) {
+                continue;
+            }
+
+            // Create a new track from path
+            let new_entry = match Entry::new(
+                new_path,
+                Some(Duration::new(0, 0)), // Will be changed to each of the old entries' values
+                None, None, None, // Read artist, album and title from `new_path` ID3v2 tags
+            ) {
+                Ok(entry) => entry,
+                Err(e) => return Err(anyhow!("Failed to construct a playcount entry for '{}': {}", new_path, e)),
+            };
+
+            new_entries.insert(new_path, new_entry);
+        }
+
+        // "Tricky scenarios" are avoided, because `self.tracks_map` is only updated at the end.
         let mut n_changed = 0usize;
         for (target_track, new_path) in edits {
             if !self.tracks_map.contains_key(target_track) {
                 continue;
             }
+
+            // Unwrap because this is guaranteed
+            let new_entry = new_entries.get_mut(new_path).unwrap();
+
             for &index in &self.tracks_map[target_track] {
-                self.entries[index].track.path = new_path.clone();
+                new_entry.duration = self.entries[index].duration;
+                self.entries[index] = new_entry.clone();
                 n_changed += 1;
             }
             self.is_modified = true;
         }
         self.rebuild_tracks_map();
-        n_changed
+        Ok(n_changed)
     }
 }

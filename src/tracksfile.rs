@@ -64,6 +64,8 @@ pub trait TracksFile {
     /// Ensures safe handling of tricky scenarios like renaming A to B and B to A, or renaming A to
     /// B and then B to C, which in a naive implementation might cause A to end up as C.
     ///
+    /// Every `Utf8PathBuf` in the `edits` hashmap must be a valid path to an audio file.
+    ///
     /// Returns the number of changed tracks (duplicate paths are counted).
-    fn bulk_rename(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> usize;
+    fn bulk_rename(&mut self, edits: &HashMap<Track, Utf8PathBuf>) -> Result<usize>;
 }
