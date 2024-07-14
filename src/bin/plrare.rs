@@ -93,9 +93,7 @@ fn get_bump_fpaths_from_item(item: &str) -> Result<Vec<Utf8PathBuf>> {
     }
 }
 
-fn get_stats_entries(playcounts: Vec<String>) -> Result<Vec<Entry>> {
-    let mut entries = vec![];
-
+fn get_stats_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> {
     let mut n_months = i32::MIN;
     if playcounts.is_empty() {
         n_months = 1;
@@ -117,19 +115,17 @@ fn get_stats_entries(playcounts: Vec<String>) -> Result<Vec<Entry>> {
     if n_months != i32::MIN {
         let mut fpaths = Playcount::iter_paths()?.collect::<Vec<_>>();
         fpaths.sort_unstable();
-        for fpath in fpaths.iter().rev().take(n_months as usize) {
-            let playcount = Playcount::open(fpath)?;
-            entries.extend(playcount.entries().cloned());
+        fpaths.reverse();
+        if (n_months as usize) < fpaths.len() {
+            fpaths.resize(n_months as usize, Utf8PathBuf::default());
         }
+        Ok(fpaths)
     } else {
         // Interpret each `playcounts` element as a file path
-        for fpath in &playcounts {
-            let playcount = Playcount::open(fpath)?;
-            entries.extend(playcount.entries().cloned());
-        }
+        Ok(playcounts.into_iter()
+            .map(Utf8PathBuf::from)
+            .collect())
     }
-
-    Ok(entries)
 }
 
 fn music_library_size() -> usize {
@@ -148,37 +144,50 @@ fn music_library_size() -> usize {
         .count()
 }
 
-fn print_stats_summary<'a>(entries: impl Iterator<Item = &'a Entry>, n_artists: usize, n_albums: usize, n_tracks: usize) -> Result<()> {
+fn print_stats_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize) -> Result<()> {
     let mut n_seconds = 0.0f64;
     let mut n_plays = 0usize;
     let mut artists = HashMap::<String, f64>::new();
     let mut albums = HashMap::<(String, String), f64>::new(); // key: (artist, album title)
     let mut tracks = HashMap::<(String, String), f64>::new(); // key: (artist, track title)
+    let mut fnames = Vec::<String>::new();
 
     // Tally up the stats
-    for entry in entries {
-        let dur = entry.duration.as_secs_f64();
-        n_seconds += dur;
-        n_plays += 1;
-        if !artists.contains_key(&entry.artist) {
-            artists.insert(entry.artist.to_owned(), dur);
-        } else {
-            *artists.get_mut(&entry.artist).unwrap() += dur;
-        }
-        if let Some(album) = &entry.album {
-            let key = (entry.artist.to_owned(), album.to_owned());
-            if !albums.contains_key(&key) {
-                albums.insert(key, dur);
-            } else {
-                *albums.get_mut(&key).unwrap() += dur;
+    for fpath in fpaths {
+        let playcount = match Playcount::open(fpath) {
+            Ok(playcount) => {
+                fnames.push(String::from(fpath.file_name().unwrap_or(fpath.as_str())));
+                playcount
+            },
+            Err(e) => {
+                error!("Failed to open '{}': {}, skipping", fpath, e);
+                continue;
             }
-        }
-        {
-            let key = (entry.artist.to_owned(), entry.title.to_owned());
-            if !tracks.contains_key(&key) {
-                tracks.insert(key, dur);
+        };
+        for entry in playcount.entries() {
+            let dur = entry.duration.as_secs_f64();
+            n_seconds += dur;
+            n_plays += 1;
+            if !artists.contains_key(&entry.artist) {
+                artists.insert(entry.artist.to_owned(), dur);
             } else {
-                *tracks.get_mut(&key).unwrap() += dur;
+                *artists.get_mut(&entry.artist).unwrap() += dur;
+            }
+            if let Some(album) = &entry.album {
+                let key = (entry.artist.to_owned(), album.to_owned());
+                if !albums.contains_key(&key) {
+                    albums.insert(key, dur);
+                } else {
+                    *albums.get_mut(&key).unwrap() += dur;
+                }
+            }
+            {
+                let key = (entry.artist.to_owned(), entry.title.to_owned());
+                if !tracks.contains_key(&key) {
+                    tracks.insert(key, dur);
+                } else {
+                    *tracks.get_mut(&key).unwrap() += dur;
+                }
             }
         }
     }
@@ -192,11 +201,10 @@ fn print_stats_summary<'a>(entries: impl Iterator<Item = &'a Entry>, n_artists: 
     let hrs = ((n_seconds as usize) % 86400) / 3600;
     let mins = ((n_seconds as usize) % 3600) / 60;
     let secs = (n_seconds % 60.0).round() as usize;
+    println!("Inputs ({}): {}\n", fnames.len(), fnames.join(", "));
     println!("Total listen time:   {days}d, {hrs}h, {mins}m, {secs}s");
     println!("Total no. plays:     {n_plays}");
-    println!("No. tracks:          {} ({:.2}% of plays, {:.2}% of all)",
-        tracks.len(),
-        (tracks.len() as f64) / (n_plays as f64) * 100.0,
+    println!("Library coverage:    {:.2}% of all tracks",
         (tracks.len() as f64) / (music_library_size() as f64) * 100.0
     );
     println!("Avg track duration:  {:02}:{:02}",
@@ -343,17 +351,17 @@ fn main() -> ExitCode {
         }
 
         Commands::Stats { playcounts, artists, albums, tracks } => {
-            let entries = match get_stats_entries(playcounts) {
-                Ok(entries) => entries,
+            let fpaths = match get_stats_playcount_paths(playcounts) {
+                Ok(fpaths) => fpaths,
                 Err(e) => {
                     error!("Failed to obtain a list of entries: {}", e);
                     return ExitCode::FAILURE;
                 }
             };
             if let Err(e) = if artists.is_none() && albums.is_none() && tracks.is_none() {
-                print_stats_summary(entries.iter(), 10, 10, 10)
+                print_stats_summary(fpaths.iter(), 10, 10, 10)
             } else {
-                print_stats_summary(entries.iter(), artists.unwrap_or(0), albums.unwrap_or(0), tracks.unwrap_or(0))
+                print_stats_summary(fpaths.iter(), artists.unwrap_or(0), albums.unwrap_or(0), tracks.unwrap_or(0))
             } {
                 error!("{}", e);
                 return ExitCode::FAILURE;
