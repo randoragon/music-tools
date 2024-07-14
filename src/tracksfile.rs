@@ -25,7 +25,7 @@ pub trait TracksFile {
 
     /// Returns an iterator over all objects.
     /// The objects are not all loaded into memory at once; they are created on-demand only.
-    fn iter() -> Option<impl Iterator<Item = Self>> where Self: Sized;
+    fn iter() -> Result<impl Iterator<Item = Self>> where Self: Sized;
 
     /// Returns the path to the text file from which the object was created.
     fn path(&self) -> &Utf8PathBuf;
@@ -51,6 +51,13 @@ pub trait TracksFile {
 
     /// Overwrites the text file to reflect the current object state.
     fn write(&mut self) -> Result<()>;
+
+    /// Creates a new track from `fpath` and appends at the end of the object.
+    fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()>;
+
+    /// Removes the last occurrence of a track from the object.
+    /// Returns whether or not `track` was found.
+    fn remove_last(&mut self, track: &Track) -> bool;
 
     /// Removes a track from the object, by index.
     fn remove_at(&mut self, index: usize);

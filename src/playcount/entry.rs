@@ -43,7 +43,7 @@ impl Entry {
 
                 let duration = match metadata._duration {
                     Some(val) => val,
-                    None => 0.0, // return Err(anyhow!("File '{}' has no duration metadata", path)),
+                    None => return Err(anyhow!("File '{}' has no duration metadata", fpath.as_ref())),
                 };
                 Duration::new(duration as u64, ((duration - duration.floor()) * 1e9) as u32)
             }
@@ -51,7 +51,7 @@ impl Entry {
 
         let mut tag: Option<Tag> = None;
         if artist.is_none() || album.is_none() || title.is_none() {
-            tag = match Tag::read_from_path(&fpath.as_ref()) {
+            tag = match Tag::read_from_path(fpath.as_ref()) {
                 Ok(tag) => Some(tag),
                 Err(e) => return Err(anyhow!("Failed to read ID3v2 tag from '{}': {}", fpath.as_ref(), e)),
             };
@@ -67,10 +67,7 @@ impl Entry {
 
         let album = match album {
             Some(album) => album,
-            None => match tag.as_ref().unwrap().album() {
-                Some(str) => Some(str.to_string()),
-                None => None,
-            },
+            None => tag.as_ref().unwrap().album().map(|str| str.to_string()),
         };
 
         let title = match title {
@@ -132,12 +129,12 @@ impl std::str::FromStr for Entry {
         };
         let duration = Duration::new(duration as u64, ((duration - duration.floor()) * 1e9) as u32);
 
-        Ok(Self::new(
+        Self::new(
             path,
             Some(duration),
             Some(artist),
             Some(if album.is_empty() { None } else { Some(album.to_string()) }),
             Some(title),
-        )?)
+        )
     }
 }

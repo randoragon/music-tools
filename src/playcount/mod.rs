@@ -3,16 +3,17 @@ pub mod entry;
 pub use entry::Entry;
 pub use crate::tracksfile::TracksFile;
 
-use crate::music_dir;
+use crate::{music_dir, path_from};
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use log::{error, warn};
+use log::warn;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
 use std::sync::OnceLock;
 use std::time::Duration;
+use chrono::Local;
 
 #[derive(Debug)]
 pub struct Playcount {
@@ -34,7 +35,7 @@ impl Playcount {
     }
 
     /// Returns an iterator over all playcount file paths.
-    fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
+    pub fn iter_paths() -> Result<impl Iterator<Item = Utf8PathBuf>> {
         crate::iter_paths(
             Self::playcount_dir(),
             |x| x.is_file() && x.extension().is_some_and(|y| y == "tsv")
@@ -76,6 +77,14 @@ impl Playcount {
             }
         }
         true
+    }
+
+    /// Convenience function that works like `open_or_new` on the current playcount file, based on
+    /// system time.
+    pub fn current() -> Result<Self> {
+        let playcount_fname = Local::now().format("%Y-%m.tsv").to_string();
+        let playcount_fpath = path_from(|| Some(Self::playcount_dir()), playcount_fname);
+        Self::open_or_new(playcount_fpath)
     }
 
     /// Returns an iterator to all entries in the playcount, in order of appearance.
@@ -133,13 +142,10 @@ impl TracksFile for Playcount {
         }
     }
 
-    fn iter() -> Option<impl Iterator<Item = Self>> {
+    fn iter() -> Result<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
-            Err(e) => {
-                error!("Failed to list the playcounts directory '{:?}': {}", Self::playcount_dir(), e);
-                return None;
-            },
+            Err(e) => return Err(anyhow!("Failed to list the playcounts directory '{:?}': {}", Self::playcount_dir(), e)),
         };
         let it = it.filter_map(|path|
             match Self::open(&path) {
@@ -150,7 +156,7 @@ impl TracksFile for Playcount {
                 },
             }
         );
-        Some(it)
+        Ok(it)
     }
 
     fn path(&self) -> &Utf8PathBuf {
@@ -191,6 +197,33 @@ impl TracksFile for Playcount {
                 .join("\n"))?;
         self.is_modified = false;
         Ok(())
+    }
+
+    fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()> {
+        let entry = match Entry::new(&fpath, None, None, None, None) {
+            Ok(entry) => entry,
+            Err(e) => return Err(anyhow!("Failed to create an entry from '{}': {}", fpath.as_ref(), e)),
+        };
+
+        if let Some(v) = self.tracks_map.get_mut(&entry.track) {
+            v.push(self.entries.len());
+        } else {
+            self.tracks_map.insert(entry.track.clone(), vec![self.entries.len()]);
+        }
+        self.entries.push(entry);
+        self.is_modified = true;
+        debug_assert!(self.verify_integrity());
+        Ok(())
+    }
+
+    fn remove_last(&mut self, track: &Track) -> bool {
+        if !self.tracks_map.contains_key(track) {
+            return false;
+        }
+        let index = self.tracks_map[track].iter().max().unwrap();
+        self.remove_at(*index);
+        self.is_modified = true;
+        true
     }
 
     fn remove_at(&mut self, index: usize) {

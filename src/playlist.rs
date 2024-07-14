@@ -4,7 +4,7 @@ use crate::music_dir;
 use crate::track::Track;
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use log::{error, warn};
+use log::warn;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Write, BufRead, BufReader};
@@ -177,13 +177,10 @@ impl TracksFile for Playlist {
         }
     }
 
-    fn iter() -> Option<impl Iterator<Item = Self>> {
+    fn iter() -> Result<impl Iterator<Item = Self>> {
         let it = match Self::iter_paths() {
             Ok(it) => it,
-            Err(e) => {
-                error!("Failed to list the playlists directory '{:?}': {}", Self::playlist_dir(), e);
-                return None;
-            },
+            Err(e) => return Err(anyhow!("Failed to list the playlists directory '{:?}': {}", Self::playlist_dir(), e)),
         };
         let it = it.filter_map(|path|
             match Self::open(&path) {
@@ -194,7 +191,7 @@ impl TracksFile for Playlist {
                 },
             }
         );
-        Some(it)
+        Ok(it)
     }
 
     fn path(&self) -> &Utf8PathBuf {
@@ -231,6 +228,30 @@ impl TracksFile for Playlist {
         )?;
         self.is_modified = false;
         Ok(())
+    }
+
+    fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()> {
+        let track = Track::new(fpath);
+
+        if let Some(v) = self.tracks_map.get_mut(&track) {
+            v.push(self.tracks.len());
+        } else {
+            self.tracks_map.insert(track.clone(), vec![self.tracks.len()]);
+        }
+        self.tracks.push(track);
+        self.is_modified = true;
+        debug_assert!(self.verify_integrity());
+        Ok(())
+    }
+
+    fn remove_last(&mut self, track: &Track) -> bool {
+        if !self.tracks_map.contains_key(track) {
+            return false;
+        }
+        let index = self.tracks_map[track].iter().max().unwrap();
+        self.remove_at(*index);
+        self.is_modified = true;
+        true
     }
 
     fn remove_at(&mut self, index: usize) {
