@@ -93,12 +93,12 @@ impl TracksFile for Playcount {
         for (i, line) in file.lines().enumerate() {
             let line = match line {
                 Ok(str) => str,
-                Err(e) => return Err(anyhow!("Failed to read line {} in '{}': {}", i, pc.path, e)),
+                Err(e) => return Err(anyhow!("Failed to read line {} in '{}': {}", i+1, pc.path, e)),
             };
             let entry = match line.parse::<Entry>() {
                 Ok(entry) => entry,
                 Err(e) => {
-                    warn!("Failed to parse line {} in '{}': {}, skipping", i, pc.path, e);
+                    warn!("Failed to parse line {} in '{}': {}, skipping", i+1, pc.path, e);
                     continue;
                 },
             };
