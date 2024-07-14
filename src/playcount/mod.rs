@@ -179,7 +179,7 @@ impl TracksFile for Playcount {
 
     fn write(&mut self) -> Result<()> {
         let mut file = File::create(&self.path)?;
-        writeln!(file, "{}",
+        write!(file, "{}",
             self.entries.iter()
                 .map(|x| format!("{}\t{}\t{}\t{}\t{}",
                     x.duration.as_secs_f32(),

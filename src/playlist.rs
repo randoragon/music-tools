@@ -223,7 +223,7 @@ impl TracksFile for Playlist {
 
     fn write(&mut self) -> Result<()> {
         let mut file = File::create(&self.path)?;
-        writeln!(file, "{}",
+        write!(file, "{}",
             self.tracks.iter()
                 .map(|x| x.path.clone().into_string())
                 .collect::<Vec<String>>()
