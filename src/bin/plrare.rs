@@ -12,6 +12,7 @@ use std::fs::File;
 use std::io::{BufReader, BufRead};
 use std::process::ExitCode;
 use std::collections::HashMap;
+use colored::Colorize;
 
 const MPD_SOCKET: &str = "127.0.0.1:6601";
 
@@ -241,7 +242,7 @@ fn print_stats_summary<'a>(entries: impl Iterator<Item = &'a Entry>, n_artists: 
                 duration / 3600,
                 (duration % 3600) / 60,
                 duration % 60,
-                album.1);
+                format!("{}  {}", album.1, album.0.dimmed()));
         }
     }
 
@@ -262,7 +263,7 @@ fn print_stats_summary<'a>(entries: impl Iterator<Item = &'a Entry>, n_artists: 
                 duration / 3600,
                 (duration % 3600) / 60,
                 duration % 60,
-                track.1);
+                format!("{}  {}", track.1, track.0.dimmed()));
         }
     }
 
