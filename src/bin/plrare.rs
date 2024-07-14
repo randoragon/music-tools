@@ -279,7 +279,19 @@ fn main() -> ExitCode {
         .init()
         .unwrap();
 
-    println!("{:?}", cli);
+    // Create the current playcount file, if it does not exist
+    match Playcount::current() {
+        Ok(mut playcount) => {
+            if !playcount.path().exists() {
+                if let Err(e) = playcount.write() {
+                    warn!("Failed to create the current playcount file: {}", e);
+                }
+            }
+        },
+        Err(e) => {
+            warn!("Failed to open the current playcount file: {}", e);
+        },
+    }
 
     match cli.command {
         Commands::Bump { item, n } => {
