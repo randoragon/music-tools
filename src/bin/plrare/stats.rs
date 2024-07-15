@@ -152,8 +152,8 @@ pub fn print_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: f6
         (tracks.len() as f64) / (library_size() as f64) * 100.0
     );
     println!("Avg track duration:  {:02}:{:02}",
-        ((n_seconds as usize) / tracks.len()) / 60,
-        ((n_seconds as usize) / tracks.len()) % 60,
+        ((n_seconds as usize) / n_plays) / 60,
+        ((n_seconds as usize) / n_plays) % 60,
     );
 }
 
