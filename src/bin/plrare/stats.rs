@@ -1,10 +1,11 @@
 use music_tools::{
+    music_dir,
     library_size,
     playlist::*,
     playcount::*,
 };
 use anyhow::{anyhow, Result};
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 use log::error;
 use std::collections::HashMap;
 use colored::Colorize;
@@ -54,11 +55,12 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
     type TrackTitle = String;
     type AlbumTitle = String;
     type TrackRecord = (usize, f64);  // Number of plays and total duration
+    type TrackRecordPath = (usize, f64, Utf8PathBuf);  // TrackRecord + track path
     type AlbumKey = (AlbumArtistName, AlbumTitle);
     type TrackKey = (ArtistName, TrackTitle);
 
     let mut artists = HashMap::<ArtistName, TrackRecord>::new();
-    let mut albums = HashMap::<AlbumKey, HashMap<TrackTitle, TrackRecord>>::new();
+    let mut albums = HashMap::<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>::new();
     let mut tracks = HashMap::<TrackKey, TrackRecord>::new();
     let mut fnames = Vec::<String>::new();
 
@@ -93,11 +95,11 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
                 };
                 let key = (album_artist, album.to_owned());
                 if !albums.contains_key(&key) {
-                    albums.insert(key, HashMap::from([(entry.title.to_owned(), (1, dur))]));
+                    albums.insert(key, HashMap::from([(entry.title.to_owned(), (1, dur, entry.track.path.clone()))]));
                 } else {
                     let album_tracks = albums.get_mut(&key).unwrap();
                     if !album_tracks.contains_key(&entry.title) {
-                        album_tracks.insert(entry.title.to_owned(), (1, dur));
+                        album_tracks.insert(entry.title.to_owned(), (1, dur, entry.track.path.clone()));
                     } else {
                         let rec = album_tracks.get_mut(&entry.title).unwrap();
                         rec.0 += 1;
@@ -130,6 +132,7 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
     }
     if n_albums != 0 {
         println!();
+        floor_album_listens_to_at_least_half(&mut albums);
         print_summary_albums(n_albums, n_plays, n_seconds, &albums, reverse);
     }
     if n_tracks != 0 {
@@ -188,7 +191,123 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
     }
 }
 
-fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64)>>, reverse: bool) {
+/// Round down each album to the number of times AT LEAST HALF of all tracks on it
+/// were listened to. This mechanism aims to prevent albums with popular singles
+/// from appearing higher in the ranking.
+fn floor_album_listens_to_at_least_half(albums: &mut HashMap<(String, String), HashMap<String, (usize, f64, Utf8PathBuf)>>) {
+    // Initialize `new_albums` with every track count set to 0
+    let mut new_albums = albums.clone();
+    for tracks in new_albums.values_mut() {
+        for (n_plays, duration, _) in tracks.values_mut() {
+            *n_plays = 0;
+            *duration = 0.0;
+        }
+    }
+
+    // Change directory to music_dir to make path validation easier
+    if let Err(e) = std::env::set_current_dir(music_dir()) {
+        error!("Failed to change directory to {}: {}", music_dir(), e);
+        return;
+    }
+
+    // Transfer counts from `albums` to `new_albums` until no at-least-halves are left
+    for (album, tracks) in albums.iter_mut() {
+        // Compute the number of tracks on the album
+        // EXPLANATION
+        // This problem is tricky and does not have a clear perfect solution without trade-offs.
+        // Playcounts are retained in history, but the files on the disk can get added or deleted,
+        // which means the first listen through the full album can include 10 tracks, then 3 tracks
+        // get deleted, and suddenly the next 5 listens are on 7 tracks. Then a track gets added
+        // back in and the next 2 listens are on 8 tracks. You get the point. There is no way of
+        // determining what the "true" number of tracks on an album is.
+        //
+        // After thinking about it a lot, I decided the following things:
+        // 1) Assume the album does not change, or changes very rarely.
+        // 2) Consider the full album length to be the number of files present on the disk.
+        // 3) Ignore album tracks which are present only in the playcount, i.e. they were deleted.
+        //
+        // Rationale: For an album listen to count, at least half of its tracks must be played.
+        // What happens commonly is that I will import a full album, listen through it, delete some
+        // songs I don't like. With the above assumptions, deleting anything off the album does not
+        // change the fact that it was listened through once. Moreover, any subsequent listens to
+        // this trimmed-down album will be counted as full listens as well, because the deleted
+        // tracks are no longer considered as part of the full album length.
+        // The only trouble could arise if a large number of deleted tracks was brought back.
+        // For example, if I did 10 listens of a 5-track album, and suddenly the album becomes
+        // 11-track-long, all 5 of those listens will not count as album listens anymore. However,
+        // these kinds of situations are rather extreme and should be very rare. It is more likely
+        // that only a few tracks would be brought back, which would not affect the previous album
+        // listens from losing their relevance.
+        tracks.retain(|_, v| v.2.exists());
+        if tracks.is_empty() {
+            continue;
+        }
+        let album_path = tracks.values().next().unwrap().2.parent().unwrap();
+        let album_n_tracks = match get_album_n_tracks(album_path) {
+            Ok(n) => n,
+            Err(e) => {
+                error!("{} (skipping, results may be inaccurate)", e);
+                continue;
+            }
+        };
+
+        // Convert TOTAL duration for each track on the album to AVERAGE duration.
+        // For simplicity it will be assumed that each play of each track is worth that average
+        // duration. This simplification is made because accounting for individual durations of
+        // each play of each track on the album amidst the already complicated counting logic would
+        // be hell. And the error, if any, should be negligible.
+        for (n_plays, duration, _) in tracks.values_mut() {
+            *duration /= *n_plays as f64;
+        }
+
+        // This loop will in each iteration create a batch of as many tracks from `album` as
+        // possible, but only 1 listen per track. If the batch is equal to or exceeds the total
+        // number of tracks on the album (`album_n_tracks`), then it will be transferred from
+        // `albums` to `new_albums`. Otherwise, the loop will end.
+        // Consequently, the number of times this loop runs will be equal to the number of times
+        // the album was counted as played (minus 1, because the final loop doesn't count).
+        loop {
+            let mut batch = HashMap::<&str, f64>::new();
+
+            // Populate the batch
+            for (title, trp) in tracks.iter_mut() {
+                debug_assert!(!batch.contains_key(title.as_str()));
+                if trp.0 > 0 {
+                    batch.insert(title, trp.1);
+                    trp.0 -= 1;
+                }
+            }
+
+            if batch.len() >= (album_n_tracks + 1) / 2 {
+                for (title, duration) in batch {
+                    let trp = new_albums.get_mut(album).unwrap().get_mut(title).unwrap();
+                    trp.0 += 1;
+                    trp.1 += duration;
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    *albums = new_albums;
+}
+
+/// Computes the number of tracks on an album by listing directory files.
+fn get_album_n_tracks(album_path: &Utf8Path) -> Result<usize> {
+    match std::fs::read_dir(album_path) {
+        Ok(dir) => {
+            Ok(dir.filter(|x|
+                x.as_ref().is_ok_and(|y|
+                    y.file_name().to_str().unwrap().ends_with(".mp3") && y.path().is_file()
+                ))
+                .count())
+        },
+        Err(e) => Err(anyhow!("Failed to list directory '{}': {}", album_path, e)),
+    }
+}
+
+fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64, Utf8PathBuf)>>, reverse: bool) {
     println!("No. albums:       {}", albums.len());
     let mut albums_order = albums.keys().collect::<Vec<_>>();
     albums_order.sort_unstable_by_key(|&k| -albums[k].values().map(|x| x.1).sum::<f64>() as i32);
@@ -209,12 +328,13 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
         (top_plays as f64) / (n_plays as f64) * 100.0,
         top_coverage / n_seconds * 100.0);
     for album in albums_order.into_iter().take(n_top) {
+        let n_plays = albums[album].values().map(|x| x.0).collect::<Vec<_>>();
         let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
-        println!("  {:02}:{:02}:{:02}│{}\t{}",
+        println!("  {:02}:{:02}:{:02}│{:.1}\t{}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
-            '?',
+            (n_plays.iter().sum::<usize>() as f64) / (n_plays.len() as f64),
             format!("{}  {}", album.1, album.0.dimmed()));
     }
 }
