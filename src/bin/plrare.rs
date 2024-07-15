@@ -44,6 +44,9 @@ enum Commands {
 
         #[arg(short, long, help = "List this many most listened tracks")]
         tracks: Option<usize>,
+
+        #[arg(short, long, help = "Print which music was played THE LEAST")]
+        reverse: bool,
     },
 }
 
@@ -144,7 +147,7 @@ fn music_library_size() -> usize {
         .count()
 }
 
-fn print_stats_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize) -> Result<()> {
+fn print_stats_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize, reverse: bool) -> Result<()> {
     let mut n_seconds = 0.0f64;
     let mut n_plays = 0usize;
 
@@ -220,15 +223,15 @@ fn print_stats_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_arti
     print_stats_summary_general(&fnames, n_plays, n_seconds, &tracks);
     if n_artists != 0 {
         println!();
-        print_stats_summary_artists(n_artists, n_plays, n_seconds, &artists);
+        print_stats_summary_artists(n_artists, n_plays, n_seconds, &artists, reverse);
     }
     if n_albums != 0 {
         println!();
-        print_stats_summary_albums(n_albums, n_plays, n_seconds, &albums);
+        print_stats_summary_albums(n_albums, n_plays, n_seconds, &albums, reverse);
     }
     if n_tracks != 0 {
         println!();
-        print_stats_summary_tracks(n_tracks, n_plays, n_seconds, &tracks);
+        print_stats_summary_tracks(n_tracks, n_plays, n_seconds, &tracks, reverse);
     }
 
     Ok(())
@@ -251,23 +254,27 @@ fn print_stats_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: 
     );
 }
 
-fn print_stats_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<String, (usize, f64)>) {
+fn print_stats_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<String, (usize, f64)>, reverse: bool) {
     println!("No. artists:       {}", artists.len());
     let mut artists_order = artists.keys().collect::<Vec<_>>();
-    artists_order.sort_unstable_by_key(|&k| artists[k].1 as usize);
-    let top_plays = artists_order.iter().rev()
+    artists_order.sort_unstable_by_key(|&k| -artists[k].1 as i32);
+    if reverse {
+        artists_order.reverse();
+    }
+    let top_plays = artists_order.iter()
         .take(n_top)
         .map(|&x| artists[x].0)
         .sum::<usize>();
-    let top_coverage = artists_order.iter().rev()
+    let top_coverage = artists_order.iter()
         .take(n_top)
         .map(|&x| artists[x].1)
         .sum::<f64>();
-    println!("Top {} listened artists ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} listened artists ({:.2}% of plays, {:.2}% of listen time):",
         n_top,
+        if !reverse { "most" } else { "least" },
         (top_plays as f64) / (n_plays as f64) * 100.0,
         top_coverage / n_seconds * 100.0);
-    for artist in artists_order.into_iter().rev().take(n_top) {
+    for artist in artists_order.into_iter().take(n_top) {
         let duration = artists[artist].1 as usize;
         println!("  {:02}:{:02}:{:02}│{}\t{}",
             duration / 3600,
@@ -278,23 +285,27 @@ fn print_stats_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, art
     }
 }
 
-fn print_stats_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64)>>) {
+fn print_stats_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64)>>, reverse: bool) {
     println!("No. albums:       {}", albums.len());
     let mut albums_order = albums.keys().collect::<Vec<_>>();
-    albums_order.sort_unstable_by_key(|&k| albums[k].values().map(|x| x.1).sum::<f64>() as usize);
-    let top_plays = albums_order.iter().rev()
+    albums_order.sort_unstable_by_key(|&k| -albums[k].values().map(|x| x.1).sum::<f64>() as i32);
+    if reverse {
+        albums_order.reverse();
+    }
+    let top_plays = albums_order.iter()
         .take(n_top)
         .map(|&x| albums[x].values().map(|y| y.0).sum::<usize>())
         .sum::<usize>();
-    let top_coverage = albums_order.iter().rev()
+    let top_coverage = albums_order.iter()
         .take(n_top)
         .map(|&x| albums[x].values().map(|y| y.1).sum::<f64>())
         .sum::<f64>();
-    println!("Top {} listened albums ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} listened albums ({:.2}% of plays, {:.2}% of listen time):",
         n_top,
+        if !reverse { "most" } else { "least" },
         (top_plays as f64) / (n_plays as f64) * 100.0,
         top_coverage / n_seconds * 100.0);
-    for album in albums_order.into_iter().rev().take(n_top) {
+    for album in albums_order.into_iter().take(n_top) {
         let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
         println!("  {:02}:{:02}:{:02}│{}\t{}",
             duration / 3600,
@@ -305,23 +316,27 @@ fn print_stats_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albu
     }
 }
 
-fn print_stats_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>) {
+fn print_stats_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>, reverse: bool) {
     println!("No. tracks:       {}", tracks.len());
     let mut tracks_order = tracks.keys().collect::<Vec<_>>();
-    tracks_order.sort_unstable_by_key(|&k| tracks[k].1 as usize);
-    let top_plays = tracks_order.iter().rev()
+    tracks_order.sort_unstable_by_key(|&k| -tracks[k].1 as i32);
+    if reverse {
+        tracks_order.reverse();
+    }
+    let top_plays = tracks_order.iter()
         .take(n_top)
         .map(|&x| tracks[x].0)
         .sum::<usize>();
-    let top_coverage = tracks_order.iter().rev()
+    let top_coverage = tracks_order.iter()
         .take(n_top)
         .map(|&x| tracks[x].1)
         .sum::<f64>();
-    println!("Top {} listened tracks ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} listened tracks ({:.2}% of plays, {:.2}% of listen time):",
         n_top,
+        if !reverse { "most" } else { "least" },
         (top_plays as f64) / (n_plays as f64) * 100.0,
         top_coverage / n_seconds * 100.0);
-    for track in tracks_order.into_iter().rev().take(n_top) {
+    for track in tracks_order.into_iter().take(n_top) {
         let duration = tracks[track].1 as usize;
         println!("  {:02}:{:02}:{:02}│{}\t{}",
             duration / 3600,
@@ -404,7 +419,7 @@ fn main() -> ExitCode {
             }
         }
 
-        Commands::Stats { playcounts, artists, albums, tracks } => {
+        Commands::Stats { playcounts, artists, albums, tracks, reverse } => {
             let fpaths = match get_stats_playcount_paths(playcounts) {
                 Ok(fpaths) => fpaths,
                 Err(e) => {
@@ -413,9 +428,9 @@ fn main() -> ExitCode {
                 }
             };
             if let Err(e) = if artists.is_none() && albums.is_none() && tracks.is_none() {
-                print_stats_summary(fpaths.iter(), 10, 10, 10)
+                print_stats_summary(fpaths.iter(), 10, 10, 10, reverse)
             } else {
-                print_stats_summary(fpaths.iter(), artists.unwrap_or(0), albums.unwrap_or(0), tracks.unwrap_or(0))
+                print_stats_summary(fpaths.iter(), artists.unwrap_or(0), albums.unwrap_or(0), tracks.unwrap_or(0), reverse)
             } {
                 error!("{}", e);
                 return ExitCode::FAILURE;
