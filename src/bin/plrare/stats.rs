@@ -50,10 +50,11 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
 
     // Types for readability
     type ArtistName = String;
+    type AlbumArtistName = String;
     type TrackTitle = String;
     type AlbumTitle = String;
     type TrackRecord = (usize, f64);  // Number of plays and total duration
-    type AlbumKey = (ArtistName, AlbumTitle);
+    type AlbumKey = (AlbumArtistName, AlbumTitle);
     type TrackKey = (ArtistName, TrackTitle);
 
     let mut artists = HashMap::<ArtistName, TrackRecord>::new();
@@ -85,7 +86,12 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
                 rec.1 += dur;
             }
             if let Some(album) = &entry.album {
-                let key = (entry.artist.to_owned(), album.to_owned());
+                let album_artist = if entry.album_artist.is_some() {
+                    entry.album_artist.clone().unwrap()
+                } else {
+                    entry.artist.clone()
+                };
+                let key = (album_artist, album.to_owned());
                 if !albums.contains_key(&key) {
                     albums.insert(key, HashMap::from([(entry.title.to_owned(), (1, dur))]));
                 } else {
