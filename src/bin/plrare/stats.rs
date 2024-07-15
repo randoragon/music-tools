@@ -10,6 +10,11 @@ use log::error;
 use std::collections::HashMap;
 use colored::Colorize;
 
+/// The minimum duration (in seconds) for an album to be considered an "album".
+/// This prevents single-track albums which were played many times from appearing
+/// in the top albums ranking.
+const MIN_ALBUM_DURATION: f64 = 25.0 * 60.0;
+
 // Types for readability
 type ArtistName = String;
 type AlbumArtistName = String;
@@ -309,9 +314,17 @@ fn get_album_n_tracks(album_path: &Utf8Path) -> Result<usize> {
 }
 
 fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>, reverse: bool) {
+    /// Estimates how many times the entire album was played
+    fn album_estimate_n_plays(album: &HashMap<TrackTitle, TrackRecordPath>) -> f64 {
+        let values = album.values().map(|x| x.0).collect::<Vec<_>>();
+        (values.iter().sum::<usize>() as f64) / (values.len() as f64)
+    }
     println!("No. albums:       {}", albums.len());
-    let mut albums_order = albums.keys().collect::<Vec<_>>();
+    let mut albums_order = albums.keys()
+        .filter(|&k| albums[k].values().map(|x| x.1 / (x.0 as f64)).sum::<f64>() >= MIN_ALBUM_DURATION)
+        .collect::<Vec<_>>();
     albums_order.sort_unstable_by_key(|&k| -albums[k].values().map(|x| x.1).sum::<f64>() as i32);
+    albums_order.sort_by_key(|&k| -(album_estimate_n_plays(&albums[k]) * 1e3) as i32);
     if reverse {
         albums_order.reverse();
     }
@@ -329,13 +342,12 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
         (top_plays as f64) / (n_plays as f64) * 100.0,
         top_coverage / n_seconds * 100.0);
     for album in albums_order.into_iter().take(n_top) {
-        let n_plays = albums[album].values().map(|x| x.0).collect::<Vec<_>>();
         let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
         println!("  {:02}:{:02}:{:02}│{:<5.1}  {}  {}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
-            (n_plays.iter().sum::<usize>() as f64) / (n_plays.len() as f64),
+            album_estimate_n_plays(&albums[album]),
             album.1, album.0.dimmed());
     }
 }
