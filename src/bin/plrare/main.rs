@@ -6,7 +6,7 @@ use music_tools::{
     track::*,
 };
 use clap::{Parser, Subcommand};
-use log::{warn, error};
+use log::error;
 use std::process::ExitCode;
 
 #[derive(Parser)]
@@ -54,17 +54,17 @@ fn main() -> ExitCode {
         .unwrap();
 
     // Create the current playcount file, if it does not exist
-    match Playcount::current() {
-        Ok(mut playcount) => {
-            if !playcount.path().exists() {
+    if !Playcount::current_path().exists() {
+        match Playcount::current() {
+            Ok(mut playcount) => {
                 if let Err(e) = playcount.write() {
-                    warn!("Failed to create the current playcount file: {}", e);
+                    error!("Failed to create the current playcount file: {}", e);
                 }
-            }
-        },
-        Err(e) => {
-            warn!("Failed to open the current playcount file: {}", e);
-        },
+            },
+            Err(e) => {
+                error!("Failed to open the current playcount file: {}", e);
+            },
+        }
     }
 
     match cli.command {
