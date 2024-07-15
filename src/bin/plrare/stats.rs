@@ -182,7 +182,7 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
         top_coverage / n_seconds * 100.0);
     for artist in artists_order.into_iter().take(n_top) {
         let duration = artists[artist].1 as usize;
-        println!("  {:02}:{:02}:{:02}│{}\t{}",
+        println!("  {:02}:{:02}:{:02}│{:<5}  {}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
@@ -330,7 +330,7 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
     for album in albums_order.into_iter().take(n_top) {
         let n_plays = albums[album].values().map(|x| x.0).collect::<Vec<_>>();
         let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
-        println!("  {:02}:{:02}:{:02}│{:.1}\t{}",
+        println!("  {:02}:{:02}:{:02}│{:<5.1}  {}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
@@ -362,7 +362,7 @@ fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &H
         top_coverage / n_seconds * 100.0);
     for track in tracks_order.into_iter().take(n_top) {
         let duration = tracks[track].1 as usize;
-        println!("  {:02}:{:02}:{:02}│{}\t{}",
+        println!("  {:02}:{:02}:{:02}│{:<5}  {}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
