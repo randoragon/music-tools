@@ -10,6 +10,16 @@ use log::error;
 use std::collections::HashMap;
 use colored::Colorize;
 
+// Types for readability
+type ArtistName = String;
+type AlbumArtistName = String;
+type TrackTitle = String;
+type AlbumTitle = String;
+type TrackRecord = (usize, f64);  // Number of plays and total duration
+type TrackRecordPath = (usize, f64, Utf8PathBuf);  // TrackRecord + track path
+type AlbumKey = (AlbumArtistName, AlbumTitle);
+type TrackKey = (ArtistName, TrackTitle);
+
 pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> {
     let mut n_months = i32::MIN;
     if playcounts.is_empty() {
@@ -45,19 +55,10 @@ pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> 
     }
 }
 
+#[allow(clippy::map_entry)]
 pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize, reverse: bool) -> Result<()> {
     let mut n_seconds = 0.0f64;
     let mut n_plays = 0usize;
-
-    // Types for readability
-    type ArtistName = String;
-    type AlbumArtistName = String;
-    type TrackTitle = String;
-    type AlbumTitle = String;
-    type TrackRecord = (usize, f64);  // Number of plays and total duration
-    type TrackRecordPath = (usize, f64, Utf8PathBuf);  // TrackRecord + track path
-    type AlbumKey = (AlbumArtistName, AlbumTitle);
-    type TrackKey = (ArtistName, TrackTitle);
 
     let mut artists = HashMap::<ArtistName, TrackRecord>::new();
     let mut albums = HashMap::<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>::new();
@@ -143,7 +144,7 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
     Ok(())
 }
 
-pub fn print_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>) {
+pub fn print_summary_general(fnames: &[String], n_plays: usize, n_seconds: f64, tracks: &HashMap<TrackKey, TrackRecord>) {
     let days = (n_seconds as usize) / 86400;
     let hrs = ((n_seconds as usize) % 86400) / 3600;
     let mins = ((n_seconds as usize) % 3600) / 60;
@@ -160,7 +161,7 @@ pub fn print_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: f6
     );
 }
 
-fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<String, (usize, f64)>, reverse: bool) {
+fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<ArtistName, TrackRecord>, reverse: bool) {
     println!("No. artists:       {}", artists.len());
     let mut artists_order = artists.keys().collect::<Vec<_>>();
     artists_order.sort_unstable_by_key(|&k| -artists[k].1 as i32);
@@ -194,7 +195,7 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
 /// Round down each album to the number of times AT LEAST HALF of all tracks on it
 /// were listened to. This mechanism aims to prevent albums with popular singles
 /// from appearing higher in the ranking.
-fn floor_album_listens_to_at_least_half(albums: &mut HashMap<(String, String), HashMap<String, (usize, f64, Utf8PathBuf)>>) {
+fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>) {
     // Initialize `new_albums` with every track count set to 0
     let mut new_albums = albums.clone();
     for tracks in new_albums.values_mut() {
@@ -307,7 +308,7 @@ fn get_album_n_tracks(album_path: &Utf8Path) -> Result<usize> {
     }
 }
 
-fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64, Utf8PathBuf)>>, reverse: bool) {
+fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>, reverse: bool) {
     println!("No. albums:       {}", albums.len());
     let mut albums_order = albums.keys().collect::<Vec<_>>();
     albums_order.sort_unstable_by_key(|&k| -albums[k].values().map(|x| x.1).sum::<f64>() as i32);
@@ -330,16 +331,16 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
     for album in albums_order.into_iter().take(n_top) {
         let n_plays = albums[album].values().map(|x| x.0).collect::<Vec<_>>();
         let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
-        println!("  {:02}:{:02}:{:02}│{:<5.1}  {}",
+        println!("  {:02}:{:02}:{:02}│{:<5.1}  {}  {}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
             (n_plays.iter().sum::<usize>() as f64) / (n_plays.len() as f64),
-            format!("{}  {}", album.1, album.0.dimmed()));
+            album.1, album.0.dimmed());
     }
 }
 
-fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>, reverse: bool) {
+fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<TrackKey, TrackRecord>, reverse: bool) {
     println!("No. tracks:       {}", tracks.len());
     let mut tracks_order = tracks.keys().collect::<Vec<_>>();
     tracks_order.sort_unstable_by_key(|&k| -(tracks[k].1 as i32));
@@ -362,11 +363,11 @@ fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &H
         top_coverage / n_seconds * 100.0);
     for track in tracks_order.into_iter().take(n_top) {
         let duration = tracks[track].1 as usize;
-        println!("  {:02}:{:02}:{:02}│{:<5}  {}",
+        println!("  {:02}:{:02}:{:02}│{:<5}  {}  {}",
             duration / 3600,
             (duration % 3600) / 60,
             duration % 60,
             tracks[track].0,
-            format!("{}  {}", track.1, track.0.dimmed()));
+            track.1, track.0.dimmed());
     }
 }

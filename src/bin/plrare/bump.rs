@@ -40,7 +40,7 @@ pub fn get_fpaths_from_item(item: &str) -> Result<Vec<Utf8PathBuf>> {
 
             Ok(BufReader::new(playlist)
                 .lines()
-                .flatten()
+                .map_while(Result::ok)
                 .map(|x| [music_dir().as_str(), x.as_str()].iter().collect())
                 .collect())
         },
