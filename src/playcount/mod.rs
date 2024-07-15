@@ -187,12 +187,7 @@ impl TracksFile for Playcount {
         let mut file = File::create(&self.path)?;
         write!(file, "{}",
             self.entries.iter()
-                .map(|x| format!("{}\t{}\t{}\t{}\t{}",
-                    x.duration.as_secs_f32(),
-                    x.artist,
-                    x.album.as_ref().unwrap_or(&String::new()),
-                    x.title,
-                    x.track.path))
+                .map(Entry::as_file_line)
                 .collect::<Vec<String>>()
                 .join("\n"))?;
         self.is_modified = false;
@@ -200,7 +195,7 @@ impl TracksFile for Playcount {
     }
 
     fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()> {
-        let entry = match Entry::new(&fpath, None, None, None, None) {
+        let entry = match Entry::new(&fpath, None, None, None, None, None) {
             Ok(entry) => entry,
             Err(e) => return Err(anyhow!("Failed to create an entry from '{}': {}", fpath.as_ref(), e)),
         };
@@ -282,7 +277,7 @@ impl TracksFile for Playcount {
             let new_entry = match Entry::new(
                 new_path,
                 Some(Duration::new(0, 0)), // Will be changed to each of the old entries' values
-                None, None, None, // Read artist, album and title from `new_path` ID3v2 tags
+                None, None, None, None, // Read artist, album artist, album and title from `new_path` ID3v2 tags
             ) {
                 Ok(entry) => entry,
                 Err(e) => return Err(anyhow!("Failed to construct a playcount entry for '{}': {}", new_path, e)),
