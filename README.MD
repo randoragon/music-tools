@@ -117,14 +117,14 @@ a [custom script](https://github.com/Randoragon/dotfiles/blob/master/scripts/.sc
 and count how many each was played. The history is kept in `hist.*.m3u` playlists,
 as listed in the previous section's table. The playcounts are stored per-month
 inside a `~/Music/.playcount/` directory in a plain-text format, with each line
-holding 5 tab-seperated values: `[duration, artist, album, title, path]`
+holding 6 tab-seperated values: `[duration, artist, album artist, album, title, path]`
 
 ```
 ~/Music/.playcount/2023-06.tsv:
-274.2	Rage Against the Machine	Renegades	Renegades Of Funk	Rage Against the Machine/Renegades/Renegades Of Funk.mp3
-428.56488	The Beatles	Hey Jude	Hey Jude	The Beatles/Hey Jude/Hey Jude.mp3
-303.648	LCD Soundsystem	London Sessions	Daft Punk Is Playing at My House	LCD Soundsystem/London Sessions/Daft Punk Is Playing at My House.mp3
-194.016	BRADIO	DIAMOND POPS	Golden Liar	BRADIO/DIAMOND POPS/Golden Liar.mp3
+274.2	Rage Against the Machine	Rage Against the Machine	Renegades	Renegades Of Funk	Rage Against the Machine/Renegades/Renegades Of Funk.mp3
+428.56488	The Beatles	The Beatles	Hey Jude	Hey Jude	The Beatles/Hey Jude/Hey Jude.mp3
+303.648	LCD Soundsystem	LCD Soundsystem	London Sessions	Daft Punk Is Playing at My House	LCD Soundsystem/London Sessions/Daft Punk Is Playing at My House.mp3
+230.32164	Ap0c	Various Artists	Hikikomori	3am Tuesday	Various Artists/Hikikomori/3am Tuesday.mp3
 ...
 ```
 
