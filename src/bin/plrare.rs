@@ -319,7 +319,8 @@ fn print_stats_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albu
 fn print_stats_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>, reverse: bool) {
     println!("No. tracks:       {}", tracks.len());
     let mut tracks_order = tracks.keys().collect::<Vec<_>>();
-    tracks_order.sort_unstable_by_key(|&k| -tracks[k].1 as i32);
+    tracks_order.sort_unstable_by_key(|&k| -(tracks[k].1 as i32));
+    tracks_order.sort_by_key(|&k| -(tracks[k].0 as i32));
     if reverse {
         tracks_order.reverse();
     }
@@ -331,7 +332,7 @@ fn print_stats_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, trac
         .take(n_top)
         .map(|&x| tracks[x].1)
         .sum::<f64>();
-    println!("Top {} {} listened tracks ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} replayed tracks ({:.2}% of plays, {:.2}% of listen time):",
         n_top,
         if !reverse { "most" } else { "least" },
         (top_plays as f64) / (n_plays as f64) * 100.0,
