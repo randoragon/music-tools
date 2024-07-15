@@ -82,9 +82,13 @@ impl Playcount {
     /// Convenience function that works like `open_or_new` on the current playcount file, based on
     /// system time.
     pub fn current() -> Result<Self> {
+        Self::open_or_new(Self::current_path())
+    }
+
+    /// Returns the path where the current playcount file should be located, based on system time.
+    pub fn current_path() -> Utf8PathBuf {
         let playcount_fname = Local::now().format("%Y-%m.tsv").to_string();
-        let playcount_fpath = path_from(|| Some(Self::playcount_dir()), playcount_fname);
-        Self::open_or_new(playcount_fpath)
+        path_from(|| Some(Self::playcount_dir()), playcount_fname)
     }
 
     /// Returns an iterator to all entries in the playcount, in order of appearance.
