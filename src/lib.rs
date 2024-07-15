@@ -17,6 +17,41 @@ pub fn music_dir() -> &'static Utf8Path {
     MUSIC_DIR.get_or_init(|| path_from(dirs::home_dir, "Music"))
 }
 
+/// Returns the number of tracks in the entire music library.
+///
+/// Note that this function only checks this number on its first call. Every subsequent call is
+/// instantaneous due to the value being cached, but if there were any changes to the library in
+/// the meantime, the reported value might be incorrect.
+pub fn library_size() -> usize {
+    static LIBRARY_SIZE: OnceLock<usize> = OnceLock::new();
+
+    *LIBRARY_SIZE.get_or_init(|| {
+        if let Ok(mut conn) = mpd_connect() {
+            if let Ok(list) = conn.listall() {
+                return list.len();
+            }
+        }
+
+        // Fallback if MPD listing fails
+        walkdir::WalkDir::new(music_dir())
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|x| x.ok())
+            .filter(|x| x.file_name().to_string_lossy().ends_with(".mp3"))
+            .count()
+    })
+}
+
+/// Connects to MPD.
+pub fn mpd_connect() -> Result<mpd::Client> {
+    const MPD_SOCKET: &str = "127.0.0.1:6601";
+
+    match mpd::Client::connect(MPD_SOCKET) {
+        Ok(conn) => Ok(conn),
+        Err(e) => Err(anyhow!("Could not connect to MPD: {}", e)),
+    }
+}
+
 /// Constructs a path by concatenating a `dirs::*` function output and an arbitrary relative path.
 ///
 /// # Examples

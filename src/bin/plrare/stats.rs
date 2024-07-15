@@ -1,102 +1,15 @@
 use music_tools::{
-    music_dir,
+    library_size,
     playlist::*,
     playcount::*,
-    track::*,
 };
 use anyhow::{anyhow, Result};
 use camino::Utf8PathBuf;
-use clap::{Parser, Subcommand};
-use log::{warn, error};
-use std::fs::File;
-use std::io::{BufReader, BufRead};
-use std::process::ExitCode;
+use log::error;
 use std::collections::HashMap;
 use colored::Colorize;
 
-const MPD_SOCKET: &str = "127.0.0.1:6601";
-
-#[derive(Parser)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// Bump the count for one or more tracks
-    Bump {
-        /// Path to a file, playlist or "^" to target the current MPD queue
-        item: String,
-        /// How many times to append <ITEM>. Can be negative for removal. Default 1.
-        n: Option<i32>
-    },
-    /// Print a listening report.
-    Stats {
-        /// A number of past months, or a list of paths to playcount files. Default 1.
-        playcounts: Vec<String>,
-
-        #[arg(short, long, help = "List this many most listened artists")]
-        artists: Option<usize>,
-
-        #[arg(short = 'b', long, help = "List this many most listened albums")]
-        albums: Option<usize>,
-
-        #[arg(short, long, help = "List this many most listened tracks")]
-        tracks: Option<usize>,
-
-        #[arg(short, long, help = "Print which music was played THE LEAST")]
-        reverse: bool,
-    },
-}
-
-fn get_bump_fpaths_from_item(item: &str) -> Result<Vec<Utf8PathBuf>> {
-    match item {
-        // Bump the current contents of the MPD queue
-        "^" => {
-            let mut conn = match mpd::Client::connect(MPD_SOCKET) {
-                Ok(conn) => conn,
-                Err(e) => {
-                    println!("Could not connect to MPD: {}", e);
-                    return Ok(vec![]);
-                },
-            };
-
-            let queue = match conn.queue() {
-                Ok(queue) => queue,
-                Err(e) => {
-                    warn!("Connection to MPD established, but could not fetch the queue: {}", e);
-                    return Ok(vec![]);
-                },
-            };
-
-            Ok(queue.iter()
-                .map(|song| [music_dir().as_str(), song.file.as_str()].iter().collect())
-                .collect())
-        },
-
-        // Bump a playlist
-        x if x.ends_with(".m3u") => {
-            let playlist = match File::open(item) {
-                Ok(file) => file,
-                Err(e) => return Err(anyhow!("Failed to open playlist '{}': {}", item, e)),
-            };
-
-            Ok(BufReader::new(playlist)
-                .lines()
-                .flatten()
-                .map(|x| [music_dir().as_str(), x.as_str()].iter().collect())
-                .collect())
-        },
-
-        // Bump a track
-        _ => {
-            Ok(vec![Utf8PathBuf::from(item)])
-        }
-    }
-}
-
-fn get_stats_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> {
+pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> {
     let mut n_months = i32::MIN;
     if playcounts.is_empty() {
         n_months = 1;
@@ -131,23 +44,7 @@ fn get_stats_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>
     }
 }
 
-fn music_library_size() -> usize {
-    if let Ok(mut conn) = mpd::Client::connect(MPD_SOCKET) {
-        if let Ok(list) = conn.listall() {
-            return list.len();
-        }
-    }
-
-    // Fallback if MPD listing fails
-    walkdir::WalkDir::new(music_dir())
-        .follow_links(false)
-        .into_iter()
-        .filter_map(|x| x.ok())
-        .filter(|x| x.file_name().to_string_lossy().ends_with(".mp3"))
-        .count()
-}
-
-fn print_stats_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize, reverse: bool) -> Result<()> {
+pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize, reverse: bool) -> Result<()> {
     let mut n_seconds = 0.0f64;
     let mut n_plays = 0usize;
 
@@ -220,24 +117,24 @@ fn print_stats_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_arti
         return Ok(());
     }
 
-    print_stats_summary_general(&fnames, n_plays, n_seconds, &tracks);
+    print_summary_general(&fnames, n_plays, n_seconds, &tracks);
     if n_artists != 0 {
         println!();
-        print_stats_summary_artists(n_artists, n_plays, n_seconds, &artists, reverse);
+        print_summary_artists(n_artists, n_plays, n_seconds, &artists, reverse);
     }
     if n_albums != 0 {
         println!();
-        print_stats_summary_albums(n_albums, n_plays, n_seconds, &albums, reverse);
+        print_summary_albums(n_albums, n_plays, n_seconds, &albums, reverse);
     }
     if n_tracks != 0 {
         println!();
-        print_stats_summary_tracks(n_tracks, n_plays, n_seconds, &tracks, reverse);
+        print_summary_tracks(n_tracks, n_plays, n_seconds, &tracks, reverse);
     }
 
     Ok(())
 }
 
-fn print_stats_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>) {
+pub fn print_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>) {
     let days = (n_seconds as usize) / 86400;
     let hrs = ((n_seconds as usize) % 86400) / 3600;
     let mins = ((n_seconds as usize) % 3600) / 60;
@@ -246,7 +143,7 @@ fn print_stats_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: 
     println!("Total listen time:   {days}d, {hrs}h, {mins}m, {secs}s");
     println!("Total no. plays:     {n_plays}");
     println!("Library coverage:    {:.2}% of all tracks",
-        (tracks.len() as f64) / (music_library_size() as f64) * 100.0
+        (tracks.len() as f64) / (library_size() as f64) * 100.0
     );
     println!("Avg track duration:  {:02}:{:02}",
         ((n_seconds as usize) / tracks.len()) / 60,
@@ -254,7 +151,7 @@ fn print_stats_summary_general(fnames: &Vec<String>, n_plays: usize, n_seconds: 
     );
 }
 
-fn print_stats_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<String, (usize, f64)>, reverse: bool) {
+fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<String, (usize, f64)>, reverse: bool) {
     println!("No. artists:       {}", artists.len());
     let mut artists_order = artists.keys().collect::<Vec<_>>();
     artists_order.sort_unstable_by_key(|&k| -artists[k].1 as i32);
@@ -285,7 +182,7 @@ fn print_stats_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, art
     }
 }
 
-fn print_stats_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64)>>, reverse: bool) {
+fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<(String, String), HashMap<String, (usize, f64)>>, reverse: bool) {
     println!("No. albums:       {}", albums.len());
     let mut albums_order = albums.keys().collect::<Vec<_>>();
     albums_order.sort_unstable_by_key(|&k| -albums[k].values().map(|x| x.1).sum::<f64>() as i32);
@@ -316,7 +213,7 @@ fn print_stats_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albu
     }
 }
 
-fn print_stats_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>, reverse: bool) {
+fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<(String, String), (usize, f64)>, reverse: bool) {
     println!("No. tracks:       {}", tracks.len());
     let mut tracks_order = tracks.keys().collect::<Vec<_>>();
     tracks_order.sort_unstable_by_key(|&k| -(tracks[k].1 as i32));
@@ -346,98 +243,4 @@ fn print_stats_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, trac
             tracks[track].0,
             format!("{}  {}", track.1, track.0.dimmed()));
     }
-}
-
-fn main() -> ExitCode {
-    let cli = Cli::parse();
-
-    stderrlog::new()
-        .module(module_path!())
-        .module("music_tools")
-        .verbosity(2)
-        .init()
-        .unwrap();
-
-    // Create the current playcount file, if it does not exist
-    match Playcount::current() {
-        Ok(mut playcount) => {
-            if !playcount.path().exists() {
-                if let Err(e) = playcount.write() {
-                    warn!("Failed to create the current playcount file: {}", e);
-                }
-            }
-        },
-        Err(e) => {
-            warn!("Failed to open the current playcount file: {}", e);
-        },
-    }
-
-    match cli.command {
-        Commands::Bump { item, n } => {
-            // Open the playcount file
-            let mut playcount = match Playcount::current() {
-                Ok(playcount) => playcount,
-                Err(e) => {
-                    error!("Failed to open the current playcount file: {}", e);
-                    return ExitCode::FAILURE;
-                },
-            };
-
-            // Parse item and get the list of paths to append/remove
-            let fpaths = match get_bump_fpaths_from_item(&item) {
-                Ok(fpaths) => fpaths,
-                Err(e) => {
-                    error!("Failed to infer paths to bump from '{}': {}", item, e);
-                    return ExitCode::FAILURE;
-                },
-            };
-
-            // Append/remove paths
-            let n = n.unwrap_or(1);
-            if n > 0 {
-                for _ in 0..n {
-                    for fpath in &fpaths {
-                        if let Err(e) = playcount.push(fpath) {
-                            error!("Failed to bump '{}': {}, skipping", fpath, e);
-                        }
-                    }
-                }
-            } else {
-                for fpath in &fpaths {
-                    let track = Track::new(fpath);
-                    for _ in n..0 {
-                        playcount.remove_last(&track);
-                    }
-                }
-            }
-
-            // Write the playcount file
-            if playcount.is_modified() {
-                if let Err(e) = playcount.write() {
-                    error!("Failed to write to '{}': {}", playcount.path(), e);
-                    return ExitCode::FAILURE;
-                }
-            }
-        }
-
-        Commands::Stats { playcounts, artists, albums, tracks, reverse } => {
-            let fpaths = match get_stats_playcount_paths(playcounts) {
-                Ok(fpaths) => fpaths,
-                Err(e) => {
-                    error!("Failed to obtain a list of entries: {}", e);
-                    return ExitCode::FAILURE;
-                }
-            };
-            if let Err(e) = if artists.is_none() && albums.is_none() && tracks.is_none() {
-                print_stats_summary(fpaths.iter(), 10, 10, 10, reverse)
-            } else {
-                print_stats_summary(fpaths.iter(), artists.unwrap_or(0), albums.unwrap_or(0), tracks.unwrap_or(0), reverse)
-            } {
-                error!("{}", e);
-                return ExitCode::FAILURE;
-            }
-        }
-    }
-
-    ExitCode::SUCCESS
 }
