@@ -1,6 +1,5 @@
 use music_tools::{
     music_dir,
-    library_size,
     playlist::*,
     playcount::*,
 };
@@ -131,7 +130,7 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
         return Ok(());
     }
 
-    print_summary_general(&fnames, n_plays, n_seconds, &tracks);
+    print_summary_general(&fnames, n_plays, n_seconds);
     if n_artists != 0 {
         println!();
         print_summary_artists(n_artists, n_plays, n_seconds, &artists, reverse);
@@ -149,7 +148,7 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
     Ok(())
 }
 
-pub fn print_summary_general(fnames: &[String], n_plays: usize, n_seconds: f64, tracks: &HashMap<TrackKey, TrackRecord>) {
+pub fn print_summary_general(fnames: &[String], n_plays: usize, n_seconds: f64) {
     let days = (n_seconds as usize) / 86400;
     let hrs = ((n_seconds as usize) % 86400) / 3600;
     let mins = ((n_seconds as usize) % 3600) / 60;
@@ -157,9 +156,6 @@ pub fn print_summary_general(fnames: &[String], n_plays: usize, n_seconds: f64, 
     println!("Inputs ({}): {}\n", fnames.len(), fnames.join(", "));
     println!("Total listen time:   {days}d, {hrs}h, {mins}m, {secs}s");
     println!("Total no. plays:     {n_plays}");
-    println!("Library coverage:    {:.2}% of all tracks",
-        (tracks.len() as f64) / (library_size() as f64) * 100.0
-    );
     println!("Avg track duration:  {:02}:{:02}",
         ((n_seconds as usize) / n_plays) / 60,
         ((n_seconds as usize) / n_plays) % 60,
