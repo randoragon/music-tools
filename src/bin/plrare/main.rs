@@ -1,5 +1,6 @@
 mod bump;
 mod stats;
+mod gen;
 use music_tools::{
     playlist::*,
     playcount::*,
@@ -21,26 +22,48 @@ enum Commands {
     Bump {
         /// Path to a file, playlist or "^" to target the current MPD queue
         item: String,
+
         /// How many times to append <ITEM>. Can be negative for removal. Default 1.
         n: Option<i32>
     },
+
     /// Print a listening report.
     Stats {
         /// A number of past months, or a list of paths to playcount files. Default 1.
         playcounts: Vec<String>,
 
-        #[arg(short, long, help = "List this many most listened artists")]
+        /// List this many most listened artists.
+        #[arg(short, long)]
         artists: Option<usize>,
 
-        #[arg(short = 'b', long, help = "List this many most listened albums")]
+        /// List this many most listened albums.
+        #[arg(short = 'b', long)]
         albums: Option<usize>,
 
-        #[arg(short, long, help = "List this many most listened tracks")]
+        /// List this many most listened tracks.
+        #[arg(short, long)]
         tracks: Option<usize>,
 
-        #[arg(short, long, help = "Print which music was played THE LEAST")]
+        /// Print which music was played THE LEAST.
+        #[arg(short, long)]
         reverse: bool,
     },
+
+    /// Generate a playlist of the least listened to tracks.
+    /// By default, any track can be included with a probability inversely proportional to its
+    /// global playcount.
+    Gen {
+        /// A number of tracks or playlist duration ([HH:]MM:[SS]).
+        content: String,
+
+        /// List tracks played THE MOST.
+        #[arg(short, long)]
+        reverse: bool,
+
+        /// Rank strictly based on playcount, no probabilities involved.
+        #[arg(short, long)]
+        strict: bool,
+    }
 }
 
 fn main() -> ExitCode {
@@ -113,7 +136,7 @@ fn main() -> ExitCode {
                     return ExitCode::FAILURE;
                 }
             }
-        }
+        },
 
         Commands::Stats { playcounts, artists, albums, tracks, reverse } => {
             let fpaths = match stats::get_playcount_paths(playcounts) {
@@ -131,7 +154,14 @@ fn main() -> ExitCode {
                 error!("{}", e);
                 return ExitCode::FAILURE;
             }
-        }
+        },
+
+        Commands::Gen { content, reverse, strict } => {
+            if let Err(e) = gen::generate(&content, reverse, strict) {
+                error!("{}", e);
+                return ExitCode::FAILURE;
+            }
+        },
     }
 
     ExitCode::SUCCESS
