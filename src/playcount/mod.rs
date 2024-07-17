@@ -191,9 +191,9 @@ impl TracksFile for Playcount {
         let mut file = File::create(&self.path)?;
         write!(file, "{}",
             self.entries.iter()
-                .map(Entry::as_file_line)
+                .map(|x| x.as_file_line() + "\n")
                 .collect::<Vec<String>>()
-                .join("\n"))?;
+                .concat())?;
         self.is_modified = false;
         Ok(())
     }

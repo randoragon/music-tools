@@ -222,9 +222,9 @@ impl TracksFile for Playlist {
         let mut file = File::create(&self.path)?;
         write!(file, "{}",
             self.tracks.iter()
-                .map(|x| x.path.clone().into_string())
+                .map(|x| x.path.clone().into_string() + "\n")
                 .collect::<Vec<String>>()
-                .join("\n")
+                .concat()
         )?;
         self.is_modified = false;
         Ok(())
