@@ -683,6 +683,7 @@ dependencies = [
  "log",
  "metadata",
  "mpd",
+ "regex",
  "stderrlog",
  "walkdir",
 ]
