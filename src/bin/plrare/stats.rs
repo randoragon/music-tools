@@ -1,5 +1,4 @@
 use music_tools::{
-    music_dir,
     playlist::*,
     playcount::*,
 };
@@ -204,12 +203,6 @@ fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<T
             *n_plays = 0;
             *duration = 0.0;
         }
-    }
-
-    // Change directory to music_dir to make path validation easier
-    if let Err(e) = std::env::set_current_dir(music_dir()) {
-        error!("Failed to change directory to {}: {}", music_dir(), e);
-        return;
     }
 
     // Transfer counts from `albums` to `new_albums` until no at-least-halves are left

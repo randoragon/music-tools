@@ -2,6 +2,7 @@ mod bump;
 mod stats;
 mod gen;
 use music_tools::{
+    music_dir,
     playlist::*,
     playcount::*,
     track::*,
@@ -75,6 +76,12 @@ fn main() -> ExitCode {
         .verbosity(2)
         .init()
         .unwrap();
+
+    // Change directory to music_dir to make path validation easier
+    if let Err(e) = std::env::set_current_dir(music_dir()) {
+        error!("Failed to change directory to {}: {}", music_dir(), e);
+        return ExitCode::FAILURE;
+    }
 
     // Create the current playcount file, if it does not exist
     if !Playcount::current_path().exists() {
