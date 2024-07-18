@@ -152,17 +152,20 @@ pub fn print_summary_general(fnames: &[String], n_plays: usize, n_seconds: f64) 
     let hrs = ((n_seconds as usize) % 86400) / 3600;
     let mins = ((n_seconds as usize) % 3600) / 60;
     let secs = (n_seconds % 60.0).round() as usize;
-    println!("Inputs ({}): {}\n", fnames.len(), fnames.join(", "));
-    println!("Total listen time:   {days}d, {hrs}h, {mins}m, {secs}s");
-    println!("Total no. plays:     {n_plays}");
-    println!("Avg track duration:  {:02}:{:02}",
-        ((n_seconds as usize) / n_plays) / 60,
-        ((n_seconds as usize) / n_plays) % 60,
+    println!("Inputs ({}): {}\n", fnames.len(),
+        fnames.iter().map(|x| x.underline().to_string()).collect::<Vec<String>>().join(", "));
+    println!("Total listen time:   {}",
+        format!("{days}d, {hrs}h, {mins}m, {secs}s").bright_yellow());
+    println!("Total no. plays:     {}", format!("{n_plays}").bright_yellow());
+    println!("Avg track duration:  {}",
+        format!("{:02}:{:02}",
+            ((n_seconds as usize) / n_plays) / 60,
+            ((n_seconds as usize) / n_plays) % 60).bright_yellow()
     );
 }
 
 fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: &HashMap<ArtistName, TrackRecord>, reverse: bool) {
-    println!("No. artists:       {}", artists.len());
+    println!("No. artists:       {}", format!("{}", artists.len()).bright_yellow());
     let mut artists_order = artists.keys().collect::<Vec<_>>();
     artists_order.sort_unstable_by_key(|&k| -artists[k].1 as i32);
     if reverse {
@@ -176,18 +179,21 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
         .take(n_top)
         .map(|&x| artists[x].1)
         .sum::<f64>();
-    println!("Top {} {} listened artists ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} listened artists ({} of plays, {} of listen time):",
         n_top,
         if !reverse { "most" } else { "least" },
-        (top_plays as f64) / (n_plays as f64) * 100.0,
-        top_coverage / n_seconds * 100.0);
+        format!("{:.2}%", (top_plays as f64) / (n_plays as f64) * 100.0).purple(),
+        format!("{:.2}%", top_coverage / n_seconds * 100.0).purple());
     for artist in artists_order.into_iter().take(n_top) {
         let duration = artists[artist].1 as usize;
-        println!("  {:02}:{:02}:{:02}│{:<5}  {}",
-            duration / 3600,
-            (duration % 3600) / 60,
-            duration % 60,
-            artists[artist].0,
+        println!("  {}{}{}  {}",
+            format!("{:02}:{:02}:{:02}",
+                duration / 3600,
+                (duration % 3600) / 60,
+                duration % 60
+            ).blue(),
+            "│".dimmed(),
+            format!("{:<5}", artists[artist].0).cyan(),
             artist);
     }
 }
@@ -308,7 +314,7 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
         let values = album.values().map(|x| x.0).collect::<Vec<_>>();
         (values.iter().sum::<usize>() as f64) / (values.len() as f64)
     }
-    println!("No. albums:       {}", albums.len());
+    println!("No. albums:       {}", format!("{}", albums.len()).bright_yellow());
     let mut albums_order = albums.keys()
         .filter(|&k| albums[k].values().map(|x| x.1 / (x.0 as f64)).sum::<f64>() >= MIN_ALBUM_DURATION)
         .collect::<Vec<_>>();
@@ -325,24 +331,27 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
         .take(n_top)
         .map(|&x| albums[x].values().map(|y| y.1).sum::<f64>())
         .sum::<f64>();
-    println!("Top {} {} listened albums ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} listened albums ({} of plays, {} of listen time):",
         n_top,
         if !reverse { "most" } else { "least" },
-        (top_plays as f64) / (n_plays as f64) * 100.0,
-        top_coverage / n_seconds * 100.0);
+        format!("{:.2}%", (top_plays as f64) / (n_plays as f64) * 100.0).purple(),
+        format!("{:.2}%", top_coverage / n_seconds * 100.0).purple());
     for album in albums_order.into_iter().take(n_top) {
         let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
-        println!("  {:02}:{:02}:{:02}│{:<5.1}  {}  {}",
-            duration / 3600,
-            (duration % 3600) / 60,
-            duration % 60,
-            album_estimate_n_plays(&albums[album]),
+        println!("  {}{}{}  {}  {}",
+            format!("{:02}:{:02}:{:02}",
+                duration / 3600,
+                (duration % 3600) / 60,
+                duration % 60
+            ).blue(),
+            "│".dimmed(),
+            format!("{:<5.1}", album_estimate_n_plays(&albums[album])).cyan(),
             album.1, album.0.dimmed());
     }
 }
 
 fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<TrackKey, TrackRecord>, reverse: bool) {
-    println!("No. tracks:       {}", tracks.len());
+    println!("No. tracks:       {}", format!("{}", tracks.len()).bright_yellow());
     let mut tracks_order = tracks.keys().collect::<Vec<_>>();
     tracks_order.sort_unstable_by_key(|&k| -(tracks[k].1 as i32));
     tracks_order.sort_by_key(|&k| -(tracks[k].0 as i32));
@@ -357,18 +366,21 @@ fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &H
         .take(n_top)
         .map(|&x| tracks[x].1)
         .sum::<f64>();
-    println!("Top {} {} replayed tracks ({:.2}% of plays, {:.2}% of listen time):",
+    println!("Top {} {} replayed tracks ({} of plays, {} of listen time):",
         n_top,
         if !reverse { "most" } else { "least" },
-        (top_plays as f64) / (n_plays as f64) * 100.0,
-        top_coverage / n_seconds * 100.0);
+        format!("{:.2}%", (top_plays as f64) / (n_plays as f64) * 100.0).purple(),
+        format!("{:.2}%", top_coverage / n_seconds * 100.0).purple());
     for track in tracks_order.into_iter().take(n_top) {
         let duration = tracks[track].1 as usize;
-        println!("  {:02}:{:02}:{:02}│{:<5}  {}  {}",
-            duration / 3600,
-            (duration % 3600) / 60,
-            duration % 60,
-            tracks[track].0,
+        println!("  {}{}{}  {}  {}",
+            format!("{:02}:{:02}:{:02}",
+                duration / 3600,
+                (duration % 3600) / 60,
+                duration % 60
+            ).blue(),
+            "│".dimmed(),
+            format!("{:<5}", tracks[track].0).cyan(),
             track.1, track.0.dimmed());
     }
 }
