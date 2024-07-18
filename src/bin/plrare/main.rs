@@ -57,7 +57,7 @@ enum Commands {
         /// A number of tracks or playlist duration ([HH:]MM:[SS]).
         content: String,
 
-        /// List tracks played THE MOST.
+        /// List tracks played the most.
         #[arg(short, long)]
         reverse: bool,
 
