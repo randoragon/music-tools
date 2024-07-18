@@ -274,7 +274,7 @@ fn remove_tracks_from_playlists(
         if playlist.name().starts_with("hist.") {
             for track in tracks.iter().filter(|&x| playlist.contains(x)) {
                 info!("Adding '{}' to ignore", track.path);
-                ignore_playlist.push(track.clone());
+                ignore_playlist.push(track.path.clone()).unwrap();
             }
             continue;
         }
@@ -296,7 +296,7 @@ fn remove_tracks_from_playcounts(
     for playcount in playcounts {
         for track in tracks.iter().filter(|&x| playcount.contains(x)) {
             info!("Adding '{}' to ignore", track.path);
-            ignore_playlist.push(track.clone());
+            ignore_playlist.push(track.path.clone()).unwrap();
         }
     }
 }
