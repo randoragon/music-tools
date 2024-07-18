@@ -25,7 +25,7 @@ pub struct Playlist {
 
 impl Playlist {
     /// Returns the path to the playlists directory.
-    fn playlist_dir() -> &'static Utf8Path {
+    pub fn playlist_dir() -> &'static Utf8Path {
         static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
         PLAYLISTS_DIR.get_or_init(|| music_dir().join("Playlists"))
     }

@@ -29,7 +29,7 @@ pub struct Playcount {
 
 impl Playcount {
     /// Returns the path to the playcount directory.
-    fn playcount_dir() -> &'static Utf8Path {
+    pub fn playcount_dir() -> &'static Utf8Path {
         static PLAYCOUNTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
         PLAYCOUNTS_DIR.get_or_init(|| music_dir().join(".playcount"))
     }
