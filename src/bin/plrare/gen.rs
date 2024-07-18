@@ -24,7 +24,7 @@ fn parse_content(content: &str) -> Result<Content> {
     fn re_duration() -> &'static Regex {
         static RE_DURATION: OnceLock<Regex> = OnceLock::new();
         RE_DURATION.get_or_init(|| {
-            Regex::new(r"((%d+):)?(%d+):(%d+)?").expect("Failed to compile RE_DURATION regex")
+            Regex::new(r"((\d+):)?(\d+):(\d+)?").expect("Failed to compile RE_DURATION regex")
         })
     }
     if let Ok(n) = content.parse::<usize>() {
