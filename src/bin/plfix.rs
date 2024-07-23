@@ -14,6 +14,7 @@ use std::fs::File;
 use std::io::{self, BufRead, Write};
 use std::mem::drop;
 use std::process::{ExitCode, Command, Stdio};
+use colored::Colorize;
 
 const PAGER_FALLBACK: &str = "less";
 
@@ -89,7 +90,9 @@ fn ask_resolve_invalid_paths(
         let mut ans = String::with_capacity(64);
 
         // Print track information and menu
-        println!("\n({}/{})  {:?}", i+1, invalid_tracks.len(), track.path);
+        println!("\n{}  {}",
+            format!("({}/{})", i+1, invalid_tracks.len()).bright_yellow(),
+            track.path.to_string().purple());
         print!("Appears in: ");
         let mut appearances: Vec<String> = vec![];
         appearances.extend(playlists.iter()
@@ -99,13 +102,13 @@ fn ask_resolve_invalid_paths(
         appearances.extend(playcounts.iter()
             .filter(|&x| x.contains(track))
             .map(|x| x.path().file_name().unwrap_or(x.path().as_str()).to_string()));
-        println!("{}", appearances.join(", "));
+        println!("{}", appearances.iter().map(|x| x.bright_cyan().to_string()).collect::<Vec<_>>().join(", "));
 
         /// Basic, fool-proof method of getting a new path.
         fn edit_basic(_track: &Track, ans: &mut String) -> Option<Utf8PathBuf> {
             let stdin = io::stdin();
             let mut stdout = io::stdout();
-            print!("New path (leave empty to skip): {}/", music_dir());
+            print!("New path (leave empty to skip): {}/", music_dir().as_str().yellow());
             if let Err(e) = stdout.flush() {
                 error!("Failed to flush stdout: {}", e);
                 return None;
@@ -121,7 +124,7 @@ fn ask_resolve_invalid_paths(
                 if path.exists() && path.is_file() && path.is_relative() {
                     new_path = Some(path);
                 } else {
-                    print!("Invalid path. Try again: {}/", music_dir());
+                    print!("Invalid path. Try again: {}/", music_dir().as_str().yellow());
                     if let Err(e) = stdout.flush() {
                         error!("Failed to flush stdout: {}", e);
                         return None;
@@ -206,7 +209,13 @@ fn ask_resolve_invalid_paths(
 
         let mut was_decision_made = false;
         while !was_decision_made {
-            print!("[s]kip, [e]dit, [d]elete/ignore, [q]uit, a[b]ort  (default: skip): ");
+            print!("{}kip, {}dit, {}elete/ignore, {}uit, a{}ort  (default: skip): ",
+                "S".bright_blue().bold(),
+                "E".bright_green().bold(),
+                "D".bright_red().bold(),
+                "Q".bold(),
+                "B".bold(),
+            );
             stdout.flush()?;
 
             // Let user choose action
@@ -216,7 +225,13 @@ fn ask_resolve_invalid_paths(
                 match ans.trim_end() {
                     "" | "s" | "e" | "d" | "q" | "b" => (),
                     _ => {
-                        print!("Please choose one of: s, e, d, q, b: ");
+                        print!("Please choose one of: {}, {}, {}, {}, {}: ",
+                            "S".bright_blue().bold(),
+                            "E".bright_green().bold(),
+                            "D".bright_red().bold(),
+                            "Q".bold(),
+                            "B".bold(),
+                        );
                         stdout.flush()?;
                         ans.clear();
                     },
@@ -231,8 +246,8 @@ fn ask_resolve_invalid_paths(
                     match edit_method(track, &mut ans) {
                         Some(new_path) => {
                             println!("Path accepted.");
-                            println!("Old: '{}'", track.path);
-                            println!("New: '{}'", new_path);
+                            println!("Old: '{}'", track.path.as_str().red());
+                            println!("New: '{}'", new_path.as_str().green());
                             edits.insert(track.clone(), new_path);
                         },
                         None => { was_decision_made = false; },
@@ -274,7 +289,7 @@ fn remove_tracks_from_playlists(
         if playlist.name().starts_with("hist.") {
             for track in tracks.iter().filter(|&x| playlist.contains(x)) {
                 info!("Adding '{}' to ignore", track.path);
-                ignore_playlist.push(track.clone());
+                ignore_playlist.push(track.path.clone()).unwrap();
             }
             continue;
         }
@@ -296,7 +311,7 @@ fn remove_tracks_from_playcounts(
     for playcount in playcounts {
         for track in tracks.iter().filter(|&x| playcount.contains(x)) {
             info!("Adding '{}' to ignore", track.path);
-            ignore_playlist.push(track.clone());
+            ignore_playlist.push(track.path.clone()).unwrap();
         }
     }
 }
@@ -406,7 +421,7 @@ fn main() -> ExitCode {
 
         if !cli.pretend {
             // Interactively decide how to fix the paths
-            println!("\nFixing {} paths:", invalid_tracks.len());
+            println!("\nFixing {} paths:", format!("{}", invalid_tracks.len()).bright_yellow());
             let (edits, deletes) = match ask_resolve_invalid_paths(
                 &invalid_tracks, &playlists, &playcounts) {
                 Ok(tuple) => tuple,

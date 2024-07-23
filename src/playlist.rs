@@ -25,7 +25,7 @@ pub struct Playlist {
 
 impl Playlist {
     /// Returns the path to the playlists directory.
-    fn playlist_dir() -> &'static Utf8Path {
+    pub fn playlist_dir() -> &'static Utf8Path {
         static PLAYLISTS_DIR: OnceLock<Utf8PathBuf> = OnceLock::new();
         PLAYLISTS_DIR.get_or_init(|| music_dir().join("Playlists"))
     }
@@ -35,18 +35,6 @@ impl Playlist {
     pub fn ignore_file() -> &'static Utf8Path {
         static IGNORE_FILE: OnceLock<Utf8PathBuf> = OnceLock::new();
         IGNORE_FILE.get_or_init(|| music_dir().join(".ignore.m3u"))
-    }
-
-    // Pushes a new track to the end of the playlist.
-    pub fn push(&mut self, track: Track) {
-        if self.tracks_map.contains_key(&track) {
-            self.tracks_map.get_mut(&track).unwrap().push(self.tracks.len());
-        } else {
-            self.tracks_map.insert(track.clone(), vec![self.tracks.len()]);
-        }
-        self.tracks.push(track);
-        self.is_modified = true;
-        debug_assert!(self.verify_integrity());
     }
 
     /// Removes all duplicate tracks from the playlist, leaving only the first occurrence of each.

@@ -23,12 +23,22 @@ pub fn music_dir() -> &'static Utf8Path {
 /// instantaneous due to the value being cached, but if there were any changes to the library in
 /// the meantime, the reported value might be incorrect.
 pub fn library_size() -> usize {
-    static LIBRARY_SIZE: OnceLock<usize> = OnceLock::new();
+    library_songs().len()
+}
 
-    *LIBRARY_SIZE.get_or_init(|| {
+/// Returns paths to all tracks in the music library. Paths are relative to `music_dir()`.
+///
+/// Note that the vector is only created on the first call. Every subsequent call is
+/// instantaneous due to the value being cached, but if there were any changes to the library in
+/// the meantime, the reported value might be incorrect.
+pub fn library_songs() -> &'static Vec<Utf8PathBuf> {
+    static LIBRARY_SONGS: OnceLock<Vec<Utf8PathBuf>> = OnceLock::new();
+    LIBRARY_SONGS.get_or_init(|| {
         if let Ok(mut conn) = mpd_connect() {
             if let Ok(list) = conn.listall() {
-                return list.len();
+                return list.into_iter()
+                    .map(|x| Utf8PathBuf::from(x.file))
+                    .collect();
             }
         }
 
@@ -38,7 +48,8 @@ pub fn library_size() -> usize {
             .into_iter()
             .filter_map(|x| x.ok())
             .filter(|x| x.file_name().to_string_lossy().ends_with(".mp3"))
-            .count()
+            .map(|x| Utf8PathBuf::from(x.path().strip_prefix(music_dir()).unwrap().to_str().unwrap()))
+            .collect()
     })
 }
 
