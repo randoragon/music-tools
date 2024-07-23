@@ -13,6 +13,7 @@ public in mind. The conventions are listed below. Use at your own risk.
 2. `plrare`
     - Keep track of how much time was spent listening to what music.
     - Print command-line summaries over a period of time.
+    - Generate playlists of least and most listened to tracks.
 
 ## Conventions
 
