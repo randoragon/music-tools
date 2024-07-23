@@ -1,4 +1,5 @@
 use music_tools::{
+    music_dir,
     playlist::*,
     playcount::*,
 };
@@ -60,6 +61,11 @@ pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> 
 
 #[allow(clippy::map_entry)]
 pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artists: usize, n_albums: usize, n_tracks: usize, reverse: bool) -> Result<()> {
+    // Change directory to music_dir to make path validation easier
+    if let Err(e) = std::env::set_current_dir(music_dir()) {
+        return Err(anyhow!("Failed to change directory to {}: {}", music_dir(), e));
+    }
+
     let mut n_seconds = 0.0f64;
     let mut n_plays = 0usize;
 

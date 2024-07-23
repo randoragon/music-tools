@@ -1,4 +1,5 @@
 use music_tools::{
+    music_dir,
     library_songs,
     path_from,
     playcount::*,
@@ -42,6 +43,11 @@ fn parse_content(content: &str) -> Result<Content> {
 }
 
 pub fn generate(content: &str, reverse: bool, strict: bool) -> Result<()> {
+    // Change directory to music_dir to make path validation easier
+    if let Err(e) = std::env::set_current_dir(music_dir()) {
+        return Err(anyhow!("Failed to change directory to {}: {}", music_dir(), e));
+    }
+
     let content = parse_content(content)?;
 
     // Build a map of all tracks (including unplayed) to their play counts
