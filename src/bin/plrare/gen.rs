@@ -78,7 +78,7 @@ pub fn generate(content: &str, reverse: bool, strict: bool) -> Result<()> {
     }?;
 
     // Write the result into a playlist
-    let mut playlist = Playlist::new(path_from(|| Some(Playlist::playlist_dir()), ".Generated.m3u"))?;
+    let mut playlist = Playlist::new(path_from(|| Some(Playlist::playlist_dir()), ".Rare.m3u"))?;
     for fpath in picks {
         playlist.push(fpath)?;
     }
