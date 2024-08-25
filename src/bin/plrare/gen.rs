@@ -2,6 +2,7 @@ use music_tools::{
     music_dir,
     library_songs,
     path_from,
+    compute_duration,
     playcount::*,
     playlist::*,
 };
@@ -13,7 +14,6 @@ use std::collections::HashMap;
 use rand::thread_rng;
 use rand::distributions::{Distribution, WeightedIndex};
 use rand::seq::SliceRandom;
-use metadata::MediaFileMetadata;
 use std::time::Duration;
 
 enum Content {
@@ -141,17 +141,9 @@ fn generate_prob(content: Content, tracks: Vec<(Utf8PathBuf, usize)>, track_dura
         let track = &tracks[idx];
         let track_duration = match track_durations.get(track).unwrap() {
             Some(v) => *v,
-            None => {
-                let metadata = match MediaFileMetadata::new(track) {
-                    Ok(data) => data,
-                    Err(e) => return Err(anyhow!("Failed to extract metadata from media file '{}': {}", track, e)),
-                };
-
-                let duration = match metadata._duration {
-                    Some(val) => val,
-                    None => return Err(anyhow!("File '{}' has no duration metadata", track)),
-                };
-                Duration::from_secs_f64(duration)
+            None => match compute_duration(track) {
+                Ok(val) => val,
+                Err(e) => return Err(anyhow!("Failed to measure the duration of '{}': {}", track, e)),
             },
         };
         println!("{}\t{}", track_playcounts[idx], track);
@@ -191,17 +183,9 @@ fn generate_strict(content: Content, mut tracks: Vec<(Utf8PathBuf, usize)>, trac
         };
         let track_duration = match track_durations.get(&track).unwrap() {
             Some(v) => *v,
-            None => {
-                let metadata = match MediaFileMetadata::new(&track) {
-                    Ok(data) => data,
-                    Err(e) => return Err(anyhow!("Failed to extract metadata from media file '{}': {}", track, e)),
-                };
-
-                let duration = match metadata._duration {
-                    Some(val) => val,
-                    None => return Err(anyhow!("File '{}' has no duration metadata", track)),
-                };
-                Duration::from_secs_f64(duration)
+            None => match compute_duration(&track) {
+                Ok(val) => val,
+                Err(e) => return Err(anyhow!("Failed to measure the duration of '{}': {}", &track, e)),
             },
         };
         println!("{n_plays}\t{track}");

@@ -10,6 +10,8 @@ use log::warn;
 use std::fs;
 use std::path::Path;
 use std::sync::OnceLock;
+use std::time::Duration;
+use std::process::Command;
 
 /// Returns the path to the music directory.
 pub fn music_dir() -> &'static Utf8Path {
@@ -86,6 +88,32 @@ pub fn path_from<A: AsRef<Path>, B: AsRef<Path>>(base_dir: fn() -> Option<A>, re
     };
     path.push(rel_path);
     path
+}
+
+/// Computes the duration of an audio file. This function invokes the soxi command.
+pub fn compute_duration<A: AsRef<Utf8Path>>(fpath: A) -> Result<Duration> {
+    let cmd = Command::new("soxi")
+        .arg("-D")
+        .arg("--")
+        .arg(fpath.as_ref())
+        .output();
+    let output = match cmd {
+        Ok(out) => out,
+        Err(e) => return Err(anyhow!("Failed to run soxi: {}", e)),
+    };
+    if output.status.success() {
+        let seconds = match String::from_utf8(output.stdout) {
+            Ok(str) => str,
+            Err(e) => return Err(anyhow!("Failed to decode soxi output to UTF-8: {}", e)),
+        };
+        let seconds = match seconds.trim().parse::<f64>() {
+            Ok(f) => f,
+            Err(e) => return Err(anyhow!("Failed to parse soxi output to float64: {}", e)),
+        };
+        Ok(Duration::new(seconds as u64, ((seconds - seconds.floor()) * 1e9) as u32))
+    } else {
+        Err(anyhow!("soxi exited with failure (stderr: {})", String::from_utf8(output.stderr).unwrap_or("<not utf8>".to_string())))
+    }
 }
 
 /// Returns an iterator over directory files, with a filtering function.

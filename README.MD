@@ -10,7 +10,7 @@ public in mind. The conventions are listed below. Use at your own risk.
 1. `plfix`
     - Remove redundant duplicate lines from playlist/playcount files.
     - Detect invalid paths and offer to interactively fix them.
-2. `plrare`
+2. `plrare` (requires the `soxi` command installed)
     - Keep track of how much time was spent listening to what music.
     - Print command-line summaries over a period of time.
     - Generate playlists of least and most listened to tracks.

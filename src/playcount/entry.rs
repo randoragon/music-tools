@@ -1,9 +1,11 @@
-use crate::track::Track;
+use crate::{
+    compute_duration,
+    track::Track,
+};
 use camino::{Utf8Path, Utf8PathBuf};
 use anyhow::{anyhow, Result, Error};
 use std::time::Duration;
 use id3::{Tag, TagLike};
-use metadata::media_file::MediaFileMetadata;
 
 /// Representation of a single line in a playcount file.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
@@ -38,18 +40,10 @@ impl Entry {
     pub fn new<T: AsRef<Utf8Path>>(fpath: T, duration: Option<Duration>, artist: Option<String>, album_artist: Option<Option<String>>, album: Option<Option<String>>, title: Option<String>) -> Result<Self> {
         let duration = match duration {
             Some(duration) => duration,
-            None => {
-                let metadata = match MediaFileMetadata::new(&fpath.as_ref()) {
-                    Ok(data) => data,
-                    Err(e) => return Err(anyhow!("Failed to extract metadata from media file '{}': {}", fpath.as_ref(), e)),
-                };
-
-                let duration = match metadata._duration {
-                    Some(val) => val,
-                    None => return Err(anyhow!("File '{}' has no duration metadata", fpath.as_ref())),
-                };
-                Duration::new(duration as u64, ((duration - duration.floor()) * 1e9) as u32)
-            }
+            None => match compute_duration(&fpath.as_ref()) {
+                Ok(val) => val,
+                Err(e) => return Err(anyhow!("Failed to measure the duration of '{}': {}", fpath.as_ref(), e)),
+            },
         };
 
         let mut tag: Option<Tag> = None;
