@@ -59,7 +59,7 @@ impl Entry {
             None => match tag.as_ref().unwrap().artist() {
                 Some(val) => val.to_string(),
                 None => return Err(anyhow!("Artist ID3v2 frame missing from '{}'", fpath.as_ref())),
-            }
+            },
         };
 
         let album_artist = match album_artist {
