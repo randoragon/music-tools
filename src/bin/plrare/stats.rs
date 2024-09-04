@@ -259,7 +259,7 @@ fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<T
             Err(e) => {
                 error!("{} (skipping, results may be inaccurate)", e);
                 continue;
-            }
+            },
         };
 
         // Convert TOTAL duration for each track on the album to AVERAGE duration.
