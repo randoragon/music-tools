@@ -208,6 +208,11 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
 /// were listened to. This mechanism aims to prevent albums with popular singles
 /// from appearing higher in the ranking.
 fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>) {
+    // Filter out tracks whose files no longer exist (see explanation below)
+    for (_, tracks) in albums.iter_mut() {
+        tracks.retain(|_, v| v.2.exists());
+    }
+
     // Initialize `new_albums` with every track count set to 0
     let mut new_albums = albums.clone();
     for tracks in new_albums.values_mut() {
@@ -245,7 +250,6 @@ fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<T
         // these kinds of situations are rather extreme and should be very rare. It is more likely
         // that only a few tracks would be brought back, which would not affect the previous album
         // listens from losing their relevance.
-        tracks.retain(|_, v| v.2.exists());
         if tracks.is_empty() {
             continue;
         }
