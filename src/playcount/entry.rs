@@ -99,6 +99,11 @@ impl Entry {
             self.title,
             self.track.path)
     }
+
+    pub fn album_path(&self) -> &Utf8Path {
+        // Unwrap, because a failure here is extremely unlikely and error handling would be a pain.
+        self.track.path.parent().unwrap()
+    }
 }
 
 impl std::str::FromStr for Entry {

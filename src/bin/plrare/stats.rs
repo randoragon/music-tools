@@ -16,13 +16,13 @@ const MIN_ALBUM_DURATION: f64 = 25.0 * 60.0;
 
 // Types for readability
 type ArtistName = String;
-type AlbumArtistName = String;
 type TrackTitle = String;
 type AlbumTitle = String;
 type TrackRecord = (usize, f64);  // Number of plays and total duration
-type TrackRecordPath = (usize, f64, Utf8PathBuf);  // TrackRecord + track path
-type AlbumKey = (AlbumArtistName, AlbumTitle);
-type TrackKey = (ArtistName, TrackTitle);
+type TrackRecordTitle = (usize, f64, TrackTitle);
+type TrackRecordArtistTitle = (usize, f64, ArtistName, TrackTitle);
+type AlbumPath = Utf8PathBuf;
+type TrackPath = Utf8PathBuf;
 
 pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> {
     let mut n_months = i32::MIN;
@@ -70,8 +70,8 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
     let mut n_plays = 0usize;
 
     let mut artists = HashMap::<ArtistName, TrackRecord>::new();
-    let mut albums = HashMap::<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>::new();
-    let mut tracks = HashMap::<TrackKey, TrackRecord>::new();
+    let mut albums = HashMap::<AlbumPath, (ArtistName, AlbumTitle, HashMap<TrackPath, TrackRecordTitle>)>::new();
+    let mut tracks = HashMap::<TrackPath, TrackRecordArtistTitle>::new();
     let mut fnames = Vec::<String>::new();
 
     // Tally up the stats
@@ -98,31 +98,28 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
                 rec.1 += dur;
             }
             if let Some(album) = &entry.album {
-                let album_artist = if entry.album_artist.is_some() {
-                    entry.album_artist.clone().unwrap()
+                if !albums.contains_key(entry.album_path()) {
+                    albums.insert(entry.album_path().to_owned(), (
+                        entry.artist.to_owned(),
+                        album.to_owned(),
+                        HashMap::from([(entry.track.path.to_owned(), (1, dur, entry.title.to_owned()))]),
+                    ));
                 } else {
-                    entry.artist.clone()
-                };
-                let key = (album_artist, album.to_owned());
-                if !albums.contains_key(&key) {
-                    albums.insert(key, HashMap::from([(entry.title.to_owned(), (1, dur, entry.track.path.clone()))]));
-                } else {
-                    let album_tracks = albums.get_mut(&key).unwrap();
-                    if !album_tracks.contains_key(&entry.title) {
-                        album_tracks.insert(entry.title.to_owned(), (1, dur, entry.track.path.clone()));
+                    let album_tracks = &mut albums.get_mut(entry.album_path()).unwrap().2;
+                    if !album_tracks.contains_key(&entry.track.path) {
+                        album_tracks.insert(entry.track.path.to_owned(), (1, dur, entry.title.to_owned()));
                     } else {
-                        let rec = album_tracks.get_mut(&entry.title).unwrap();
+                        let rec = album_tracks.get_mut(&entry.track.path).unwrap();
                         rec.0 += 1;
                         rec.1 += dur;
                     }
                 }
             }
             {
-                let key = (entry.artist.to_owned(), entry.title.to_owned());
-                if !tracks.contains_key(&key) {
-                    tracks.insert(key, (1, dur));
+                if !tracks.contains_key(&entry.track.path) {
+                    tracks.insert(entry.track.path.to_owned(), (1, dur, entry.artist.to_owned(), entry.title.to_owned()));
                 } else {
-                    let tuple = tracks.get_mut(&key).unwrap();
+                    let tuple = tracks.get_mut(&entry.track.path).unwrap();
                     tuple.0 += 1;
                     tuple.1 += dur;
                 }
@@ -207,23 +204,23 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
 /// Round down each album to the number of times AT LEAST HALF of all tracks on it
 /// were listened to. This mechanism aims to prevent albums with popular singles
 /// from appearing higher in the ranking.
-fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>) {
+fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumPath, (ArtistName, AlbumTitle, HashMap<TrackPath, TrackRecordTitle>)>) {
     // Filter out tracks whose files no longer exist (see explanation below)
-    for (_, tracks) in albums.iter_mut() {
-        tracks.retain(|_, v| v.2.exists());
+    for (_, (_, _, tracks)) in albums.iter_mut() {
+        tracks.retain(|k, _| k.exists());
     }
 
     // Initialize `new_albums` with every track count set to 0
     let mut new_albums = albums.clone();
     for tracks in new_albums.values_mut() {
-        for (n_plays, duration, _) in tracks.values_mut() {
+        for (n_plays, duration, _) in tracks.2.values_mut() {
             *n_plays = 0;
             *duration = 0.0;
         }
     }
 
     // Transfer counts from `albums` to `new_albums` until no at-least-halves are left
-    for (album, tracks) in albums.iter_mut() {
+    for (album_path, album_info) in albums.iter_mut() {
         // Compute the number of tracks on the album
         // EXPLANATION
         // This problem is tricky and does not have a clear perfect solution without trade-offs.
@@ -250,10 +247,10 @@ fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<T
         // these kinds of situations are rather extreme and should be very rare. It is more likely
         // that only a few tracks would be brought back, which would not affect the previous album
         // listens from losing their relevance.
+        let tracks = &mut album_info.2;
         if tracks.is_empty() {
             continue;
         }
-        let album_path = tracks.values().next().unwrap().2.parent().unwrap();
         let album_n_tracks = match get_album_n_tracks(album_path) {
             Ok(n) => n,
             Err(e) => {
@@ -278,22 +275,22 @@ fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumKey, HashMap<T
         // Consequently, the number of times this loop runs will be equal to the number of times
         // the album was counted as played (minus 1, because the final loop doesn't count).
         loop {
-            let mut batch = HashMap::<&str, f64>::new();
+            let mut batch = HashMap::<&Utf8Path, f64>::new();
 
             // Populate the batch
-            for (title, trp) in tracks.iter_mut() {
-                debug_assert!(!batch.contains_key(title.as_str()));
-                if trp.0 > 0 {
-                    batch.insert(title, trp.1);
-                    trp.0 -= 1;
+            for (track_path, trt) in tracks.iter_mut() {
+                debug_assert!(!batch.contains_key(track_path.as_path()));
+                if trt.0 > 0 {
+                    batch.insert(track_path, trt.1);
+                    trt.0 -= 1;
                 }
             }
 
             if batch.len() >= (album_n_tracks + 1) / 2 {
                 for (title, duration) in batch {
-                    let trp = new_albums.get_mut(album).unwrap().get_mut(title).unwrap();
-                    trp.0 += 1;
-                    trp.1 += duration;
+                    let trt = new_albums.get_mut(album_path).unwrap().2.get_mut(title).unwrap();
+                    trt.0 += 1;
+                    trt.1 += duration;
                 }
             } else {
                 break;
@@ -318,11 +315,10 @@ fn get_album_n_tracks(album_path: &Utf8Path) -> Result<usize> {
     }
 }
 
-fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>, reverse: bool) {
+fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<AlbumPath, (ArtistName, AlbumTitle, HashMap<TrackPath, TrackRecordTitle>)>, reverse: bool) {
     /// Estimates how many times the entire album was played
-    fn album_estimate_n_plays(album: &HashMap<TrackTitle, TrackRecordPath>) -> f64 {
+    fn album_estimate_n_plays(album_path: &Utf8PathBuf, album: &HashMap<TrackPath, TrackRecordTitle>) -> f64 {
         let n_plays = album.values().map(|x| x.0).sum::<usize>() as f64;
-        let album_path = album.values().next().unwrap().2.parent().unwrap();
         match get_album_n_tracks(album_path) {
             Ok(n) => n_plays / (n as f64),
             Err(e) => {
@@ -333,28 +329,28 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
     }
     println!("No. albums:       {}", format!("{}", albums.len()).bright_yellow());
     let mut albums_order = albums.keys()
-        .filter(|&k| albums[k].values().filter(|x| x.0 != 0).map(|x| x.1 / (x.0 as f64)).sum::<f64>() >= MIN_ALBUM_DURATION)
+        .filter(|&k| albums[k].2.values().filter(|x| x.0 != 0).map(|x| x.1 / (x.0 as f64)).sum::<f64>() >= MIN_ALBUM_DURATION)
         .collect::<Vec<_>>();
-    albums_order.sort_unstable_by_key(|&k| -albums[k].values().map(|x| x.1).sum::<f64>() as i32);
-    albums_order.sort_by_key(|&k| -(album_estimate_n_plays(&albums[k]) * 1e3) as i32);
+    albums_order.sort_unstable_by_key(|&k| -albums[k].2.values().map(|x| x.1).sum::<f64>() as i32);
+    albums_order.sort_by_key(|&k| -(album_estimate_n_plays(k, &albums[k].2) * 1e3) as i32);
     if reverse {
         albums_order.reverse();
     }
     let top_plays = albums_order.iter()
         .take(n_top)
-        .map(|&x| albums[x].values().map(|y| y.0).sum::<usize>())
+        .map(|&x| albums[x].2.values().map(|y| y.0).sum::<usize>())
         .sum::<usize>();
     let top_coverage = albums_order.iter()
         .take(n_top)
-        .map(|&x| albums[x].values().map(|y| y.1).sum::<f64>())
+        .map(|&x| albums[x].2.values().map(|y| y.1).sum::<f64>())
         .sum::<f64>();
     println!("Top {} {} listened albums ({} of plays, {} of listen time):",
         n_top,
         if !reverse { "most" } else { "least" },
         format!("{:.2}%", (top_plays as f64) / (n_plays as f64) * 100.0).purple(),
         format!("{:.2}%", top_coverage / n_seconds * 100.0).purple());
-    for album in albums_order.into_iter().take(n_top) {
-        let duration = albums[album].values().map(|x| x.1).sum::<f64>() as usize;
+    for k in albums_order.into_iter().take(n_top) {
+        let duration = albums[k].2.values().map(|x| x.1).sum::<f64>() as usize;
         println!("  {}{}{}  {}  {}",
             format!("{:02}:{:02}:{:02}",
                 duration / 3600,
@@ -362,12 +358,12 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
                 duration % 60
             ).blue(),
             "│".dimmed(),
-            format!("{:<5.1}", album_estimate_n_plays(&albums[album])).cyan(),
-            album.1, album.0.dimmed());
+            format!("{:<5.1}", album_estimate_n_plays(k, &albums[k].2)).cyan(),
+            albums[k].1, albums[k].0.dimmed());
     }
 }
 
-fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<TrackKey, TrackRecord>, reverse: bool) {
+fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &HashMap<TrackPath, TrackRecordArtistTitle>, reverse: bool) {
     println!("No. tracks:       {}", format!("{}", tracks.len()).bright_yellow());
     let mut tracks_order = tracks.keys().collect::<Vec<_>>();
     tracks_order.sort_unstable_by_key(|&k| -(tracks[k].1 as i32));
@@ -398,6 +394,6 @@ fn print_summary_tracks(n_top: usize, n_plays: usize, n_seconds: f64, tracks: &H
             ).blue(),
             "│".dimmed(),
             format!("{:<5}", tracks[track].0).cyan(),
-            track.1, track.0.dimmed());
+            tracks[track].3, tracks[track].2.dimmed());
     }
 }
