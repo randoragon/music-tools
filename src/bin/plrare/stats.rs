@@ -321,8 +321,15 @@ fn get_album_n_tracks(album_path: &Utf8Path) -> Result<usize> {
 fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &HashMap<AlbumKey, HashMap<TrackTitle, TrackRecordPath>>, reverse: bool) {
     /// Estimates how many times the entire album was played
     fn album_estimate_n_plays(album: &HashMap<TrackTitle, TrackRecordPath>) -> f64 {
-        let values = album.values().map(|x| x.0).collect::<Vec<_>>();
-        (values.iter().sum::<usize>() as f64) / (values.len() as f64)
+        let n_plays = album.values().map(|x| x.0).sum::<usize>() as f64;
+        let album_path = album.values().next().unwrap().2.parent().unwrap();
+        match get_album_n_tracks(album_path) {
+            Ok(n) => n_plays / (n as f64),
+            Err(e) => {
+                error!("{} (skipping, results may be inaccurate)", e);
+                0.0
+            },
+        }
     }
     println!("No. albums:       {}", format!("{}", albums.len()).bright_yellow());
     let mut albums_order = albums.keys()
