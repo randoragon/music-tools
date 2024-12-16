@@ -5,7 +5,7 @@ use music_tools::{
 };
 use anyhow::{anyhow, Result};
 use camino::{Utf8Path, Utf8PathBuf};
-use log::error;
+use log::{warn, error};
 use std::collections::HashMap;
 use colored::Colorize;
 
@@ -99,8 +99,14 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
             }
             if let Some(album) = &entry.album {
                 if !albums.contains_key(entry.album_path()) {
+                    let artist = if entry.album_artist.is_some() {
+                        entry.album_artist.clone().unwrap()
+                    } else {
+                        warn!("Missing album_artist field in {}, using artist as fallback", entry.track.path);
+                        entry.artist.to_owned()
+                    };
                     albums.insert(entry.album_path().to_owned(), (
-                        entry.artist.to_owned(),
+                        artist,
                         album.to_owned(),
                         HashMap::from([(entry.track.path.to_owned(), (1, dur, entry.title.to_owned()))]),
                     ));
