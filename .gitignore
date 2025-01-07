@@ -1,8 +1,6 @@
-# Ignore Nix flake and direnv files
+# Ignore direnv files
 /.direnv/
 /.envrc
-/flake.nix
-/flake.lock
 
 /target
 
