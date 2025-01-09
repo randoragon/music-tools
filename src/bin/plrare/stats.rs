@@ -24,6 +24,7 @@ type TrackRecordArtistTitle = (usize, f64, ArtistName, TrackTitle);
 type AlbumPath = Utf8PathBuf;
 type TrackPath = Utf8PathBuf;
 
+/// Returns a vector of **absolute** paths to each playcount file.
 pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> {
     let mut n_months = i32::MIN;
     if playcounts.is_empty() {
@@ -44,7 +45,9 @@ pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> 
     }
 
     if n_months != i32::MIN {
-        let mut fpaths = Playcount::iter_paths()?.collect::<Vec<_>>();
+        let mut fpaths = Playcount::iter_paths()?
+            .map(|x| Playcount::playcount_dir().join(x))
+            .collect::<Vec<_>>();
         fpaths.sort_unstable();
         fpaths.reverse();
         if (n_months as usize) < fpaths.len() {
@@ -53,9 +56,14 @@ pub fn get_playcount_paths(playcounts: Vec<String>) -> Result<Vec<Utf8PathBuf>> 
         Ok(fpaths)
     } else {
         // Interpret each `playcounts` element as a file path
-        Ok(playcounts.into_iter()
-            .map(Utf8PathBuf::from)
-            .collect())
+        if let Ok(pwd) = std::env::current_dir() {
+            Ok(playcounts.into_iter()
+                .map(Utf8PathBuf::from)
+                .map(|x| if x.is_absolute() { x } else { Utf8PathBuf::from(pwd.to_str().unwrap()).join(x) })
+                .collect())
+        } else {
+            Err(anyhow!("Failed to read current directory"))
+        }
     }
 }
 
