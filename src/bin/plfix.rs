@@ -288,6 +288,9 @@ fn remove_tracks_from_playlists(
         // to the ignored meta-playlist.
         if playlist.name().starts_with("hist.") {
             for track in tracks.iter().filter(|&x| playlist.contains(x)) {
+                if ignore_playlist.contains(track) {
+                    continue;
+                }
                 info!("Adding '{}' to ignore", track.path);
                 ignore_playlist.push(track.path.clone()).unwrap();
             }
@@ -310,6 +313,9 @@ fn remove_tracks_from_playcounts(
 ) {
     for playcount in playcounts {
         for track in tracks.iter().filter(|&x| playcount.contains(x)) {
+            if ignore_playlist.contains(track) {
+                continue;
+            }
             info!("Adding '{}' to ignore", track.path);
             ignore_playlist.push(track.path.clone()).unwrap();
         }
@@ -437,6 +443,7 @@ fn main() -> ExitCode {
             remove_tracks_from_playcounts(&mut playcounts, &deletes, &mut ignore_playlist);
 
             // Update the ignore playlist
+            ignore_playlist.remove_duplicates();
             if ignore_playlist.is_modified() {
                 if let Err(e) = ignore_playlist.write() {
                     error!("Failed to write to '{}': {}", ignore_playlist.path(), e);
