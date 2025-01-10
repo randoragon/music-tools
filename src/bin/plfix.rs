@@ -50,7 +50,7 @@ fn find_invalid_tracks<T: TracksFile, F: Fn(&Track) -> bool>(
     let mut invalid_count = 0usize;
     for file in files {
         let mut printed_header = false;
-        let it = file.tracks_unique().filter(|&x| !x.path.exists() && !ignore(x));
+        let it = file.tracks_unique().filter(|&x| !x.path.is_file() && !ignore(x));
         for invalid_track in it {
             set.insert(invalid_track.clone());
             invalid_count += 1;
