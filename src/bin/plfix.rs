@@ -121,7 +121,7 @@ fn ask_resolve_invalid_paths(
                     return None;
                 }
                 let path = Utf8PathBuf::from(ans.trim_end());
-                if path.exists() && path.is_file() && path.is_relative() {
+                if path.is_file() && path.is_relative() {
                     new_path = Some(path);
                 } else {
                     print!("Invalid path. Try again: {}/", music_dir().as_str().yellow());
@@ -175,7 +175,7 @@ fn ask_resolve_invalid_paths(
                         return None;
                     }
                 };
-                if path.exists() && path.is_file() && path.is_relative() {
+                if path.is_file() && path.is_relative() {
                     Some(path)
                 } else {
                     warn!("fzf printed an invalid path '{}'. This is rather unlikely.", path);
