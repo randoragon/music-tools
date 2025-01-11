@@ -5,12 +5,19 @@ use ratatui::{
 };
 
 /// A custom ratatui widget of a playlist selector menu.
+#[derive(Default)]
 pub struct TuiPicker {
     // TODO
 }
 
+/// A struct describing the complete state of a `TuiPicker`.
+#[derive(Default)]
+pub struct TuiPickerState {
+    // TODO
+}
+
 impl TuiPicker {
-    pub fn new() -> Self {
+    pub fn new(state: &TuiPickerState) -> Self {
         TuiPicker {}
     }
 }
