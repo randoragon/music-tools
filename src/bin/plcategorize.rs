@@ -41,7 +41,7 @@ fn draw(app: &App, frame: &mut Frame) {
         layout[0]
     );
     frame.render_widget(Clear::default(), layout[1]);
-    frame.render_widget(TuiPicker::new(&app.picker_state), layout[2]);
+    frame.render_widget(TuiPicker::new(&app.picker_state, ""), layout[2]);
 }
 
 fn main() -> ExitCode {
