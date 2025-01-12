@@ -6,6 +6,10 @@ use ratatui::{
     style::{Style, Stylize},
     layout::{Layout, Constraint, Direction, Alignment},
 };
+use log::error;
+use anyhow::Result;
+use std::collections::HashMap;
+use std::rc::Rc;
 use music_tools::playlist::tui_picker::*;
 use std::process::ExitCode;
 
@@ -14,11 +18,28 @@ struct App {
     picker_state: TuiPickerState,
 }
 
-fn init() -> App {
-    App {
+fn state_callback(state: &TuiPickerItemState) {
+
+}
+
+fn init() -> Result<App> {
+    let states = vec![0, 1];
+    let state_styles = HashMap::from([
+        (0, Style::new().red()),
+        (1, Style::new().green()),
+    ]);
+    // let state_callback = |_| {
+
+    // };
+    let picker_state = TuiPickerState::new(
+        &states,
+        &state_styles,
+        Rc::new(state_callback),
+    )?;
+    Ok(App {
         title: String::from(" plcategorize "),
-        picker_state: TuiPickerState::default(),
-    }
+        picker_state,
+    })
 }
 
 fn update(app: App) -> App {
@@ -45,8 +66,14 @@ fn draw(app: &App, frame: &mut Frame) {
 }
 
 fn main() -> ExitCode {
+    let mut app = match init() {
+        Ok(app) => app,
+        Err(e) => {
+            error!("Failed to initialize application: {e}");
+            return ExitCode::FAILURE;
+        },
+    };
     let mut terminal = ratatui::init();
-    let mut app = init();
     loop {
         app = update(app);
         terminal.draw(|x| draw(&app, x)).expect("failed to draw frame");
