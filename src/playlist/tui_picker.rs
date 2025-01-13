@@ -20,7 +20,7 @@ use std::rc::Rc;
 /// Returns the path to the playlists directory.
 pub fn playlist_mappings_path() -> &'static Utf8Path {
     static PLAYLIST_MAPPINGS_PATH: OnceLock<Utf8PathBuf> = OnceLock::new();
-    PLAYLIST_MAPPINGS_PATH.get_or_init(|| path_from(dirs::config_dir, "playlist_mappings.tsv"))
+    PLAYLIST_MAPPINGS_PATH.get_or_init(|| path_from(dirs::config_dir, "playlist-mappings.tsv"))
 }
 
 /// A custom ratatui widget of a playlist selector menu.

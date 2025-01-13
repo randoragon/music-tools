@@ -22,7 +22,7 @@ fn state_callback(state: &TuiPickerItemState) {
 
 }
 
-fn init() -> Result<App> {
+fn app_init() -> Result<App> {
     let states = vec![0, 1];
     let state_styles = HashMap::from([
         (0, Style::new().red()),
@@ -66,7 +66,14 @@ fn draw(app: &App, frame: &mut Frame) {
 }
 
 fn main() -> ExitCode {
-    let mut app = match init() {
+    stderrlog::new()
+        .module(module_path!())
+        .module("music_tools")
+        .verbosity(2)
+        .init()
+        .unwrap();
+
+    let mut app = match app_init() {
         Ok(app) => app,
         Err(e) => {
             error!("Failed to initialize application: {e}");
