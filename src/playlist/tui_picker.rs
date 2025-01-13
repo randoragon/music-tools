@@ -79,40 +79,57 @@ impl Widget for TuiPicker<'_> {
     fn render(self, area: Rect, buf: &mut Buffer) {
         let items = &self.state_ref.items;  // Shorthand
 
-        // Compute the number of items per row
+        // Compute the number of columns
         let item_width = match items.iter()
             .filter_map(|x| if x.is_some() { Some(x.as_ref().unwrap().width) } else { None })
             .next() {
             Some(w) => w,
             None => return,  // Nothing to render
         };
-        let n_items_per_row = area.width as usize / item_width;
+        let n_cols = std::cmp::max(1, std::cmp::min(area.width as usize / item_width, 5));
+
+        // Compute the left-padding needed to center the whole text
+        let lpad = 1 + (area.width as usize - (item_width * n_cols)) / 2;
 
         // Find index ranges for each "paragraph".
         // At this point it is guaranteed that there is at least one Some(Item).
         let mut par_ranges = vec![(0usize, usize::MAX)];
         for i in 0..items.len() {
             if items[i].is_none() {
-                let last_par_idx = par_ranges.len() - 1;
-                par_ranges[last_par_idx].1 = i - 1;
+                par_ranges.last_mut().unwrap().1 = i - 1;
                 if items.len() >= i + 1 {
                     par_ranges.push((i + 1, usize::MAX));
                 }
             }
         }
+        par_ranges.last_mut().unwrap().1 = items.len() - 1;
 
         // Compose the text to render
         let mut text = Text::default();
         for (par_begin, par_end) in par_ranges {
-            for i_offset in 0..n_items_per_row {
+            let n_par_items = par_end - par_begin + 1;
+            let n_par_lines = (n_par_items + n_cols - 1) / n_cols;
+            let n_par_overflow = n_par_items % n_cols;
+            for i_offset in 0..n_par_lines {
                 let mut i = par_begin + i_offset;
                 let mut line = Line::default();
-                while i <= par_end && i < items.len() {
+                let mut x = 1;  // Horizontal position (column index)
+                line.push_span(Span::raw(" ".repeat(lpad)));
+                while x <= n_cols && i <= par_end && i < items.len() {
                     // Within each paragraph it is guaranteed that all values will be Some
                     for span in TuiPickerItem::new(items[i].as_ref().unwrap(), self.input).spans {
                         line.push_span(span);
                     }
-                    i += n_items_per_row;
+                    // This calculation is a bit more complex, but essentially, we want to
+                    // skip all items that will be below us in a column. That number is always
+                    // either n_par_lines, or n_par_lines-1 (if the final row is not full).
+                    // In addition, we must always skip at least 1 item.
+                    i += std::cmp::max(1, n_par_lines - if x <= n_par_overflow { 0 } else { 1 });
+                    if i_offset == n_par_lines - 1 && n_par_overflow != 0 && x >= n_par_overflow {
+                        break;
+                    } else {
+                        x += 1;
+                    }
                 }
                 text.push_line(line);
             }
