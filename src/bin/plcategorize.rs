@@ -101,7 +101,7 @@ fn app_init() -> Result<App> {
     })
 }
 
-fn draw(app: &App, frame: &mut Frame) {
+fn draw(app: &App, frame: &mut Frame, input: &str) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
@@ -117,7 +117,7 @@ fn draw(app: &App, frame: &mut Frame) {
         layout[0]
     );
     frame.render_widget(Clear, layout[1]);
-    frame.render_widget(TuiPicker::new(&app.picker_state, ""), layout[2]);
+    frame.render_widget(TuiPicker::new(&app.picker_state, input), layout[2]);
 }
 
 enum Action {
@@ -183,7 +183,7 @@ fn main() -> ExitCode {
     let mut terminal = ratatui::init();
     app.picker_state.refresh();
     loop {
-        if let Err(e) = terminal.draw(|x| draw(&app, x)) {
+        if let Err(e) = terminal.draw(|x| draw(&app, x, &input)) {
             error!("Failed to draw frame: {e}");
             return ExitCode::FAILURE;
         }
