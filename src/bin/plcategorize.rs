@@ -17,7 +17,7 @@ struct App {
     picker_state: TuiPickerState,
 }
 
-fn app_init<'a>() -> Result<App> {
+fn app_init() -> Result<App> {
     let states = vec![0, 1];
     let state_styles = HashMap::from([
         (0, Style::new().red()),
@@ -48,7 +48,7 @@ fn draw(app: &App, frame: &mut Frame) {
             Constraint::Length(1),
             Constraint::Length(1),
             Constraint::Min(0),
-        ].into_iter())
+        ])
         .split(frame.area());
 
     frame.render_widget(
@@ -56,7 +56,7 @@ fn draw(app: &App, frame: &mut Frame) {
         Style::new().bold().reversed()).alignment(Alignment::Center),
         layout[0]
     );
-    frame.render_widget(Clear::default(), layout[1]);
+    frame.render_widget(Clear, layout[1]);
     frame.render_widget(TuiPicker::new(&app.picker_state, ""), layout[2]);
 }
 

@@ -87,7 +87,7 @@ impl Widget for TuiPicker<'_> {
             Some(w) => w,
             None => return,  // Nothing to render
         };
-        let n_cols = std::cmp::max(1, std::cmp::min(area.width as usize / item_width, 5));
+        let n_cols = (area.width as usize / item_width).clamp(1, 5);
 
         // Compute the left-padding needed to center the whole text
         let lpad = 1 + (area.width as usize - (item_width * n_cols)) / 2;
@@ -98,6 +98,7 @@ impl Widget for TuiPicker<'_> {
         for i in 0..items.len() {
             if items[i].is_none() {
                 par_ranges.last_mut().unwrap().1 = i - 1;
+                #[allow(clippy::int_plus_one)]
                 if items.len() >= i + 1 {
                     par_ranges.push((i + 1, usize::MAX));
                 }
