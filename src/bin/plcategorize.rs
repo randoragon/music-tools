@@ -1,3 +1,9 @@
+use music_tools::{
+    mpd::*,
+    track::Track,
+    playlist::{Playlist, TracksFile},
+    playlist::tui_picker::*,
+};
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
     text::Text,
@@ -7,30 +13,88 @@ use ratatui::{
     layout::{Layout, Constraint, Direction, Alignment},
 };
 use log::error;
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
-use music_tools::playlist::tui_picker::*;
 use std::process::ExitCode;
+use std::sync::{LazyLock, Mutex};
+
+static CURRENT_TRACK: LazyLock<Mutex<Option<Track>>> = LazyLock::new(|| {
+    Mutex::new(fetch_current_track().ok())
+});
 
 struct App {
     title: String,
     picker_state: TuiPickerState,
 }
 
+fn fetch_current_track() -> Result<Track> {
+    let mut conn = mpd_connect()?;
+    let song = conn.currentsong()?;
+    match song {
+        Some(info) => Ok(Track::new(info.file)),
+        None => Err(anyhow!("No track playing")),
+    }
+}
+
+fn on_refresh(_state: u8, playlist: &mut Playlist) -> u8 {
+    if let Err(_) = playlist.reload() {
+        return 2;
+    }
+
+    if let Some(track) = CURRENT_TRACK.lock().unwrap().as_ref() {
+        if playlist.contains(track) {
+            return 1;
+        }
+    }
+
+    0
+}
+
+fn on_select(state: u8, playlist: &mut Playlist) -> u8 {
+    if let Err(_) = playlist.reload() {
+        return 2;
+    }
+
+    if let Some(track) = CURRENT_TRACK.lock().unwrap().as_ref() {
+        return match state {
+            0 => {
+                // Add to playlist
+                if playlist.contains(track) {
+                    1
+                } else if let Ok(_) = playlist.push(track.path.clone()) {
+                    if let Ok(_) = playlist.write() {
+                        1
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            },
+            1 => {
+                // Remove from playlist
+                playlist.remove_all(track);
+                if let Ok(_) = playlist.write() {
+                    0
+                } else {
+                    1
+                }
+            },
+            2 => 2,
+            _ => panic!("unknown state {state}, internal error!"),
+        };
+    }
+
+    0
+}
+
 fn app_init() -> Result<App> {
-    let states = vec![0, 1];
     let state_styles = HashMap::from([
         (0, Style::new().red()),
-        (1, Style::new().green()),
+        (1, Style::new().bold().green()),
+        (2, Style::new().gray()),
     ]);
-    // let state_callback = |_| {
-
-    // };
-    let picker_state = TuiPickerState::new(
-        &states,
-        &state_styles,
-        |s| { println!("state: {s}"); },
-    )?;
+    let picker_state = TuiPickerState::new(0, &state_styles, on_refresh, on_select)?;
     Ok(App {
         title: String::from(" plcategorize "),
         picker_state,
@@ -121,6 +185,7 @@ fn main() -> ExitCode {
     };
     let mut input = String::with_capacity(32);
     let mut terminal = ratatui::init();
+    app.picker_state.refresh();
     loop {
         app = update(app);
         if let Err(e) = terminal.draw(|x| draw(&app, x)) {
@@ -141,18 +206,17 @@ fn main() -> ExitCode {
             Action::Ignore => {},
             Action::Quit => break,
             Action::NewChar => {
-                // Check input, if it matches any playlist, toggle that playlist and clear input.
-                // TODO
-
-                // If input does not match the beginning of any playlist shortcut, clear it.
-                // TODO
+                if !app.picker_state.update_input(&input) {
+                    input.clear();
+                }
             },
             Action::Refresh => {
-                // TODO
+                *CURRENT_TRACK.lock().unwrap() = fetch_current_track().ok();
+                app.picker_state.refresh();
+                // TODO: visual feedback
             }
             Action::ClearInput => {
                 input.clear();
-                // TODO: erase shortcut highlights
             },
         }
     }

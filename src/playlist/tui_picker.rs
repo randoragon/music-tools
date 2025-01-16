@@ -15,8 +15,6 @@ use camino::{Utf8Path, Utf8PathBuf};
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::OnceLock;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 /// Returns the path to the playlists directory.
 pub fn playlist_mappings_path() -> &'static Utf8Path {
@@ -43,13 +41,13 @@ pub struct TuiPickerState {
 
 /// A struct describing the complete state of a `TuiPickerItem`.
 pub struct TuiPickerItemState {
-    pub width: usize,
     pub playlist: Playlist,
     pub shortcut: String,
-    pub states: Vec<u8>,
-    pub state_styles: HashMap<u8, Style>,
-    pub state_callback: Box<dyn Fn(u8)>,
-    pub state: Rc<RefCell<usize>>,
+    width: usize,
+    state_styles: HashMap<u8, Style>,
+    on_refresh: Box<dyn Fn(u8, &mut Playlist) -> u8>,
+    on_select: Box<dyn Fn(u8, &mut Playlist) -> u8>,
+    state: u8,
 }
 
 impl<'a> TuiPicker<'a> {
@@ -64,7 +62,7 @@ impl<'a> TuiPicker<'a> {
 impl<'a> TuiPickerItem<'a> {
     pub fn new(state: &'a TuiPickerItemState, input: &str) -> Self {
         let n_input_chars_hl = if state.shortcut.starts_with(input) { input.len() } else { 0 };
-        let name_style = state.state_styles[&state.states[*state.state.borrow()]];
+        let name_style = state.state_styles[&state.state];
         let width = state.shortcut.len() + 1 + state.playlist.name.len();
         Self { spans: vec![
             Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow()),
@@ -149,9 +147,10 @@ impl Widget for TuiPickerItem<'_> {
 }
 
 impl TuiPickerState {
-    pub fn new<F>(states: &[u8], state_styles: &HashMap<u8, Style>, state_callback: F) -> Result<Self>
+    pub fn new<F, G>(state: u8, state_styles: &HashMap<u8, Style>, on_refresh: F, on_select: G) -> Result<Self>
     where
-        F: Fn(u8) + 'static + Clone,
+        F: Fn(u8, &mut Playlist) -> u8 + 'static + Clone,
+        G: Fn(u8, &mut Playlist) -> u8 + 'static + Clone,
     {
         let mut items = vec![];
         let fpath = playlist_mappings_path();
@@ -185,10 +184,10 @@ impl TuiPickerState {
                 width: 0,  // Will be updated later
                 playlist,
                 shortcut,
-                states: states.to_vec(),
                 state_styles: state_styles.to_owned(),
-                state_callback: Box::new(state_callback.clone()),
-                state: Rc::new(RefCell::new(0)),
+                on_refresh: Box::new(on_refresh.clone()),
+                on_select: Box::new(on_select.clone()),
+                state,
             }));
         }
 
@@ -197,12 +196,33 @@ impl TuiPickerState {
 
         Ok(Self { items })
     }
+
+    pub fn refresh(&mut self) {
+        for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
+            item.refresh();
+        }
+    }
+
+    pub fn update_input(&mut self, input: &str) -> bool {
+        for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
+            if item.shortcut == input {
+                item.select();
+                return false;
+            }
+            if item.shortcut.starts_with(input) {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl TuiPickerItemState {
-    pub fn trigger(&mut self) {
-        let mut state = self.state.as_ref().borrow_mut();
-        *state = (*state + 1) % self.states.len();
-        (self.state_callback)(self.states[*state]);
+    pub fn refresh(&mut self) {
+        self.state = (self.on_refresh)(self.state, &mut self.playlist);
+    }
+
+    pub fn select(&mut self) {
+        self.state = (self.on_select)(self.state, &mut self.playlist);
     }
 }
