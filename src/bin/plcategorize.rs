@@ -9,7 +9,6 @@ use ratatui::{
 use log::error;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::rc::Rc;
 use music_tools::playlist::tui_picker::*;
 use std::process::ExitCode;
 
@@ -18,11 +17,7 @@ struct App {
     picker_state: TuiPickerState,
 }
 
-fn state_callback(state: &TuiPickerItemState) {
-
-}
-
-fn app_init() -> Result<App> {
+fn app_init<'a>() -> Result<App> {
     let states = vec![0, 1];
     let state_styles = HashMap::from([
         (0, Style::new().red()),
@@ -34,7 +29,7 @@ fn app_init() -> Result<App> {
     let picker_state = TuiPickerState::new(
         &states,
         &state_styles,
-        Rc::new(state_callback),
+        |s| { println!("state: {s}"); },
     )?;
     Ok(App {
         title: String::from(" plcategorize "),

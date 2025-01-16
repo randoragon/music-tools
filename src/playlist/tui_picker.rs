@@ -16,6 +16,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::sync::OnceLock;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 /// Returns the path to the playlists directory.
 pub fn playlist_mappings_path() -> &'static Utf8Path {
@@ -47,8 +48,8 @@ pub struct TuiPickerItemState {
     pub shortcut: String,
     pub states: Vec<u8>,
     pub state_styles: HashMap<u8, Style>,
-    pub state_callback: Rc<dyn Fn(&Self)>,
-    pub state: usize,
+    pub state_callback: Box<dyn Fn(u8)>,
+    pub state: Rc<RefCell<usize>>,
 }
 
 impl<'a> TuiPicker<'a> {
@@ -63,7 +64,7 @@ impl<'a> TuiPicker<'a> {
 impl<'a> TuiPickerItem<'a> {
     pub fn new(state: &'a TuiPickerItemState, input: &str) -> Self {
         let n_input_chars_hl = if state.shortcut.starts_with(input) { input.len() } else { 0 };
-        let name_style = state.state_styles[&state.states[state.state]];
+        let name_style = state.state_styles[&state.states[*state.state.borrow()]];
         let width = state.shortcut.len() + 1 + state.playlist.name.len();
         Self { spans: vec![
             Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow()),
@@ -147,7 +148,10 @@ impl Widget for TuiPickerItem<'_> {
 }
 
 impl TuiPickerState {
-    pub fn new(states: &[u8], state_styles: &HashMap<u8, Style>, state_callback: Rc<dyn Fn(&TuiPickerItemState)>) -> Result<Self> {
+    pub fn new<F>(states: &[u8], state_styles: &HashMap<u8, Style>, state_callback: F) -> Result<Self>
+    where
+        F: Fn(u8) + 'static + Clone,
+    {
         let mut items = vec![];
         let fpath = playlist_mappings_path();
         let file = BufReader::new(File::open(fpath)?);
@@ -182,8 +186,8 @@ impl TuiPickerState {
                 shortcut,
                 states: states.to_vec(),
                 state_styles: state_styles.to_owned(),
-                state_callback: Rc::clone(&state_callback),
-                state: 0,
+                state_callback: Box::new(state_callback.clone()),
+                state: Rc::new(RefCell::new(0)),
             }));
         }
 
@@ -196,7 +200,8 @@ impl TuiPickerState {
 
 impl TuiPickerItemState {
     pub fn trigger(&mut self) {
-        self.state = (self.state + 1) % self.states.len();
-        self.state_callback.as_ref()(self);
+        let mut state = self.state.as_ref().borrow_mut();
+        *state = (*state + 1) % self.states.len();
+        (self.state_callback)(self.states[*state]);
     }
 }
