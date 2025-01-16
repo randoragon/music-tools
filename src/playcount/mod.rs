@@ -101,32 +101,7 @@ impl Playcount {
 impl TracksFile for Playcount {
     fn open<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
         let mut pc = Self::new(fpath)?;
-
-        let file = BufReader::new(File::open(&pc.path)?);
-        for (i, line) in file.lines().enumerate() {
-            let line = match line {
-                Ok(str) => str,
-                Err(e) => return Err(anyhow!("Failed to read line {} in '{}': {}", i+1, pc.path, e)),
-            };
-            let entry = match line.parse::<Entry>() {
-                Ok(entry) => entry,
-                Err(e) => {
-                    warn!("Failed to parse line {} in '{}': {}, skipping", i+1, pc.path, e);
-                    continue;
-                },
-            };
-            if pc.tracks_map.contains_key(&entry.track) {
-                pc.tracks_map.get_mut(&entry.track)
-                    .unwrap()
-                    .push(pc.entries.len());
-                pc.entries.push(entry);
-            } else {
-                let list = vec![pc.entries.len()];
-                pc.tracks_map.insert(entry.track.clone(), list);
-                pc.entries.push(entry);
-            }
-        }
-        debug_assert!(pc.verify_integrity());
+        pc.reload()?;
         Ok(pc)
     }
 
@@ -144,6 +119,42 @@ impl TracksFile for Playcount {
             true => Self::open(fpath),
             false => Self::new(fpath),
         }
+    }
+
+    fn reload(&mut self) -> Result<()> {
+        let mut entries_new = Vec::new();
+        let mut tracks_map_new = HashMap::<Track, Vec<usize>>::new();
+
+        let file = BufReader::new(File::open(&self.path)?);
+        for (i, line) in file.lines().enumerate() {
+            let line = match line {
+                Ok(str) => str,
+                Err(e) => return Err(anyhow!("Failed to read line {} in '{}': {}", i+1, self.path, e)),
+            };
+            let entry = match line.parse::<Entry>() {
+                Ok(entry) => entry,
+                Err(e) => {
+                    warn!("Failed to parse line {} in '{}': {}, skipping", i+1, self.path, e);
+                    continue;
+                },
+            };
+            if tracks_map_new.contains_key(&entry.track) {
+                tracks_map_new.get_mut(&entry.track)
+                    .unwrap()
+                    .push(entries_new.len());
+                entries_new.push(entry);
+            } else {
+                let list = vec![entries_new.len()];
+                tracks_map_new.insert(entry.track.clone(), list);
+                entries_new.push(entry);
+            }
+        }
+
+        self.entries = entries_new;
+        self.tracks_map = tracks_map_new;
+        self.is_modified = false;
+        debug_assert!(self.verify_integrity());
+        Ok(())
     }
 
     fn iter() -> Result<impl Iterator<Item = Self>> {
