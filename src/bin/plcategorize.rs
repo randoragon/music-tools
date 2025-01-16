@@ -101,10 +101,6 @@ fn app_init() -> Result<App> {
     })
 }
 
-fn update(app: App) -> App {
-    app
-}
-
 fn draw(app: &App, frame: &mut Frame) {
     let layout = Layout::default()
         .direction(Direction::Vertical)
@@ -187,7 +183,6 @@ fn main() -> ExitCode {
     let mut terminal = ratatui::init();
     app.picker_state.refresh();
     loop {
-        app = update(app);
         if let Err(e) = terminal.draw(|x| draw(&app, x)) {
             error!("Failed to draw frame: {e}");
             return ExitCode::FAILURE;
