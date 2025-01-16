@@ -1,6 +1,7 @@
 pub mod track;
 pub mod playlist;
 pub mod playcount;
+pub mod mpd;
 
 mod tracksfile;
 
