@@ -7,7 +7,7 @@ use ratatui::{
     layout::Rect,
     buffer::Buffer,
     widgets::Widget,
-    style::{Style, Stylize},
+    style::{Style, Stylize, Color},
 };
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -65,12 +65,13 @@ impl<'a> TuiPickerItem<'a> {
         let n_input_chars_hl = if state.shortcut.starts_with(input) { input.len() } else { 0 };
         let name_style = state.state_styles[&state.state];
         let width = state.shortcut.len() + 1 + state.playlist.name().len();
+        let bg_col = if n_input_chars_hl != 0 { Color::DarkGray } else { Color::default() };
         Self { spans: vec![
             Span::raw(" ".repeat(state.shortcut_rpad)),
-            Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow()),
-            Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan()),
-            Span::raw(" "),
-            Span::styled(state.playlist.name(), name_style),
+            Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow().bg(bg_col)),
+            Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan().bg(bg_col)),
+            Span::styled(" ", Style::new().bg(bg_col)),
+            Span::styled(state.playlist.name(), name_style.bg(bg_col)),
             Span::raw(" ".repeat(
                 if width + state.shortcut_rpad < state.width {
                     state.width - width - state.shortcut_rpad
