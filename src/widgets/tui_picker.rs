@@ -44,6 +44,7 @@ pub struct TuiPickerItemState {
     pub playlist: Playlist,
     pub shortcut: String,
     width: usize,
+    shortcut_rpad: usize,
     state_styles: HashMap<u8, Style>,
     on_refresh: Box<dyn Fn(u8, &mut Playlist) -> u8>,
     on_select: Box<dyn Fn(u8, &mut Playlist) -> u8>,
@@ -65,11 +66,18 @@ impl<'a> TuiPickerItem<'a> {
         let name_style = state.state_styles[&state.state];
         let width = state.shortcut.len() + 1 + state.playlist.name().len();
         Self { spans: vec![
+            Span::raw(" ".repeat(state.shortcut_rpad)),
             Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow()),
             Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan()),
             Span::raw(" "),
             Span::styled(state.playlist.name(), name_style),
-            Span::raw(" ".repeat(if width < state.width { state.width - width } else { 0 })),
+            Span::raw(" ".repeat(
+                if width + state.shortcut_rpad < state.width {
+                    state.width - width - state.shortcut_rpad
+                } else {
+                    0
+                }
+            )),
         ]}
     }
 }
@@ -152,6 +160,7 @@ impl TuiPickerState {
         let fpath = playlist_mappings_path();
         let file = BufReader::new(File::open(fpath)?);
         let mut width = 0usize;
+        let mut shortcut_width = 0usize;
         for (i, line) in file.lines().enumerate() {
             let line = match line {
                 Ok(str) => str,
@@ -170,6 +179,7 @@ impl TuiPickerState {
                 Some(str) => str.to_owned(),
                 None => return Err(anyhow!("Failed to extract shortcut from mappings line: {}", line)),
             };
+            shortcut_width = std::cmp::max(shortcut_width, shortcut.len());
             let pl_path = Playlist::playlist_dir().join(name.to_owned() + ".m3u");
             let playlist = match Playlist::open(&pl_path) {
                 Ok(pl) => pl,
@@ -178,6 +188,7 @@ impl TuiPickerState {
             width = std::cmp::max(width, shortcut.len() + 1 + playlist.name().len() + 2);
             items.push(Some(TuiPickerItemState {
                 width: 0,  // Will be updated later
+                shortcut_rpad: 0,
                 playlist,
                 shortcut,
                 state_styles: state_styles.to_owned(),
@@ -187,8 +198,13 @@ impl TuiPickerState {
             }));
         }
 
-        // Update the width of every item
-        items.iter_mut().for_each(|x| if x.is_some() { x.as_mut().unwrap().width = width; });
+        for item in items.iter_mut().filter_map(|x| x.as_mut()) {
+            // Update the width of every item
+            item.width = width;
+
+            // Compute shortcut padding
+            item.shortcut_rpad = shortcut_width - item.shortcut.len();
+        }
 
         Ok(Self { items })
     }
