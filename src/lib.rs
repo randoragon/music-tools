@@ -2,6 +2,7 @@ pub mod track;
 pub mod playlist;
 pub mod playcount;
 pub mod mpd;
+pub mod widgets;
 
 mod tracksfile;
 

@@ -63,12 +63,12 @@ impl<'a> TuiPickerItem<'a> {
     pub fn new(state: &'a TuiPickerItemState, input: &str) -> Self {
         let n_input_chars_hl = if state.shortcut.starts_with(input) { input.len() } else { 0 };
         let name_style = state.state_styles[&state.state];
-        let width = state.shortcut.len() + 1 + state.playlist.name.len();
+        let width = state.shortcut.len() + 1 + state.playlist.name().len();
         Self { spans: vec![
             Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow()),
             Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan()),
             Span::raw(" "),
-            Span::styled(&state.playlist.name, name_style),
+            Span::styled(state.playlist.name(), name_style),
             Span::raw(" ".repeat(if width < state.width { state.width - width } else { 0 })),
         ]}
     }
@@ -86,9 +86,6 @@ impl Widget for TuiPicker<'_> {
             None => return,  // Nothing to render
         };
         let n_cols = (area.width as usize / item_width).clamp(1, 5);
-
-        // Compute the left-padding needed to center the whole text
-        let lpad = 1 + (area.width as usize - (item_width * n_cols)) / 2;
 
         // Find index ranges for each "paragraph".
         // At this point it is guaranteed that there is at least one Some(Item).
@@ -114,7 +111,6 @@ impl Widget for TuiPicker<'_> {
                 let mut i = par_begin + i_offset;
                 let mut line = Line::default();
                 let mut x = 1;  // Horizontal position (column index)
-                line.push_span(Span::raw(" ".repeat(lpad)));
                 while x <= n_cols && i <= par_end && i < items.len() {
                     // Within each paragraph it is guaranteed that all values will be Some
                     for span in TuiPickerItem::new(items[i].as_ref().unwrap(), self.input).spans {

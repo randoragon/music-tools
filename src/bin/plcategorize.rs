@@ -1,25 +1,24 @@
 use music_tools::{
-    mpd::*,
-    track::Track,
-    playlist::{Playlist, TracksFile},
-    playlist::tui_picker::*,
+    playlist::*,
+    track::*,
+    widgets::tui_picker::*,
+    widgets::track_info::*,
 };
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
-    text::{Span, Line, Text},
-    widgets::Clear,
+    text::{Span, Line},
     Frame,
     style::{Style, Stylize},
-    layout::{Layout, Constraint, Direction, Alignment},
+    layout::{Layout, Constraint, Direction},
 };
 use log::error;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use std::collections::HashMap;
 use std::process::ExitCode;
 use std::sync::{LazyLock, Mutex};
 
-static CURRENT_TRACK: LazyLock<Mutex<Option<Track>>> = LazyLock::new(|| {
-    Mutex::new(fetch_current_track().ok())
+static CURRENT_TRACK: LazyLock<Mutex<TrackInfo>> = LazyLock::new(|| {
+    Mutex::new(TrackInfo::default())
 });
 
 struct App {
@@ -27,22 +26,14 @@ struct App {
     picker_state: TuiPickerState,
 }
 
-fn fetch_current_track() -> Result<Track> {
-    let mut conn = mpd_connect()?;
-    let song = conn.currentsong()?;
-    match song {
-        Some(info) => Ok(Track::new(info.file)),
-        None => Err(anyhow!("No track playing")),
-    }
-}
-
 fn on_refresh(_state: u8, playlist: &mut Playlist) -> u8 {
     if let Err(_) = playlist.reload() {
         return 2;
     }
 
-    if let Some(track) = CURRENT_TRACK.lock().unwrap().as_ref() {
-        if playlist.contains(track) {
+    let track_info = CURRENT_TRACK.lock().unwrap();
+    if let Some(file) = track_info.file() {
+        if playlist.contains(&Track::new(file)) {
             return 1;
         }
     }
@@ -55,13 +46,15 @@ fn on_select(state: u8, playlist: &mut Playlist) -> u8 {
         return 2;
     }
 
-    if let Some(track) = CURRENT_TRACK.lock().unwrap().as_ref() {
+    let track_info = CURRENT_TRACK.lock().unwrap();
+    if let Some(file) = track_info.file() {
+        let track = Track::new(file);
         return match state {
             0 => {
                 // Add to playlist
-                if playlist.contains(track) {
+                if playlist.contains(&track) {
                     1
-                } else if let Ok(_) = playlist.push(track.path.clone()) {
+                } else if let Ok(_) = playlist.push(track.path) {
                     if let Ok(_) = playlist.write() {
                         1
                     } else {
@@ -73,7 +66,7 @@ fn on_select(state: u8, playlist: &mut Playlist) -> u8 {
             },
             1 => {
                 // Remove from playlist
-                playlist.remove_all(track);
+                playlist.remove_all(&track);
                 if let Ok(_) = playlist.write() {
                     0
                 } else {
@@ -107,8 +100,6 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
         .constraints(vec![
             Constraint::Length(1),
             Constraint::Length(1),
-            Constraint::Length(3),
-            Constraint::Length(1),
             Constraint::Min(0),
         ])
         .split(frame.area());
@@ -121,11 +112,27 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
         Span::styled("ESC", Style::new().bold().blue()),
         Span::raw(if input.is_empty() { " refresh" } else { " cancel" }),
     ]);
+
+    let layout_indent = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![
+            Constraint::Length(2),
+            Constraint::Min(0),
+        ])
+        .split(layout[2]);
+
+    let layout_song_picker = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(vec![
+            Constraint::Length(3),
+            Constraint::Length(2),
+            Constraint::Min(0),
+        ])
+        .split(layout_indent[1]);
+
     frame.render_widget(title_bar, layout[0]);
-    frame.render_widget(Clear, layout[1]);
-    frame.render_widget(Clear, layout[2]);
-    frame.render_widget(Clear, layout[3]);
-    frame.render_widget(TuiPicker::new(&app.picker_state, input), layout[4]);
+    frame.render_widget(CURRENT_TRACK.lock().unwrap().clone(), layout_song_picker[0]);
+    frame.render_widget(TuiPicker::new(&app.picker_state, input), layout_song_picker[2]);
 }
 
 enum Action {
@@ -214,7 +221,7 @@ fn main() -> ExitCode {
                 }
             },
             Action::Refresh => {
-                *CURRENT_TRACK.lock().unwrap() = fetch_current_track().ok();
+                *CURRENT_TRACK.lock().unwrap() = TrackInfo::default();
                 app.picker_state.refresh();
                 // TODO: visual feedback
             }

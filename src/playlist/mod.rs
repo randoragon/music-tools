@@ -1,6 +1,3 @@
-pub mod tui_picker;
-
-pub use tui_picker::TuiPicker;
 pub use crate::tracksfile::TracksFile;
 
 use crate::music_dir;
