@@ -6,7 +6,7 @@ use music_tools::{
 };
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{
-    text::Text,
+    text::{Span, Line, Text},
     widgets::Clear,
     Frame,
     style::{Style, Stylize},
@@ -107,17 +107,25 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
         .constraints(vec![
             Constraint::Length(1),
             Constraint::Length(1),
+            Constraint::Length(3),
+            Constraint::Length(1),
             Constraint::Min(0),
         ])
         .split(frame.area());
 
-    frame.render_widget(
-        Text::styled(&app.title,
-        Style::new().bold().reversed()).alignment(Alignment::Center),
-        layout[0]
-    );
+    let title_bar = Line::from(vec![
+        Span::styled(&app.title, Style::new().bold().reversed()),
+        Span::raw(" "),
+        Span::styled("q", Style::new().bold().blue()),
+        Span::raw(" exit  "),
+        Span::styled("ESC", Style::new().bold().blue()),
+        Span::raw(if input.is_empty() { " refresh" } else { " cancel" }),
+    ]);
+    frame.render_widget(title_bar, layout[0]);
     frame.render_widget(Clear, layout[1]);
-    frame.render_widget(TuiPicker::new(&app.picker_state, input), layout[2]);
+    frame.render_widget(Clear, layout[2]);
+    frame.render_widget(Clear, layout[3]);
+    frame.render_widget(TuiPicker::new(&app.picker_state, input), layout[4]);
 }
 
 enum Action {
