@@ -85,7 +85,7 @@ fn app_init() -> Result<App> {
     let state_styles = HashMap::from([
         (0, Style::new().red()),
         (1, Style::new().bold().green()),
-        (2, Style::new().gray()),
+        (2, Style::new().dark_gray()),
     ]);
     let picker_state = TuiPickerState::new(0, &state_styles, on_refresh, on_select)?;
     Ok(App {
