@@ -25,7 +25,7 @@ fn address() -> &'static str {
         //     addr.push_str(MPD_DEFAULT_HOST);
         // }
         addr.push_str(MPD_DEFAULT_HOST);
-        addr.push_str(":");
+        addr.push(':');
         if let Ok(str) = env::var("MPD_PORT") {
             addr.push_str(&str);
         } else {

@@ -31,7 +31,7 @@ struct App {
 }
 
 fn on_refresh(_state: u8, playlist: &mut Playlist) -> u8 {
-    if let Err(_) = playlist.reload() {
+    if playlist.reload().is_err() {
         return 2;
     }
 
@@ -46,7 +46,7 @@ fn on_refresh(_state: u8, playlist: &mut Playlist) -> u8 {
 }
 
 fn on_select(state: u8, playlist: &mut Playlist) -> u8 {
-    if let Err(_) = playlist.reload() {
+    if playlist.reload().is_err() {
         return 2;
     }
 
@@ -58,8 +58,8 @@ fn on_select(state: u8, playlist: &mut Playlist) -> u8 {
                 // Add to playlist
                 if playlist.contains(&track) {
                     1
-                } else if let Ok(_) = playlist.push(track.path) {
-                    if let Ok(_) = playlist.write() {
+                } else if playlist.push(track.path).is_ok() {
+                    if playlist.write().is_ok() {
                         1
                     } else {
                         0
@@ -71,7 +71,7 @@ fn on_select(state: u8, playlist: &mut Playlist) -> u8 {
             1 => {
                 // Remove from playlist
                 playlist.remove_all(&track);
-                if let Ok(_) = playlist.write() {
+                if playlist.write().is_ok() {
                     0
                 } else {
                     1

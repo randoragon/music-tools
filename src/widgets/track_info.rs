@@ -59,9 +59,9 @@ impl Widget for TrackInfo {
     }
 }
 
-impl TrackInfo {
+impl Default for TrackInfo {
     /// Initializes TrackInfo with the current song playing in MPD.
-    pub fn default() -> Self {
+    fn default() -> Self {
         let mut ret = Self {
             file: None,
             title: None,
@@ -88,22 +88,17 @@ impl TrackInfo {
         ret.file = Some(Utf8PathBuf::from(song.file));
         ret.title = song.title;
         ret.artist = song.artist;
-        ret.duration = match song.duration {
-            Some(d) => Some(d.as_secs()),
-            None => None,
-        };
+        ret.duration = song.duration.map(|d| d.as_secs());
 
-        ret.album = match song.tags.into_iter().find(|x| x.0 == "Album") {
-            Some((_, a)) => Some(a),
-            None => None,
-        };
-
+        ret.album = song.tags.into_iter().find(|x| x.0 == "Album").map(|(_, a)| a);
         ret
     }
+}
 
+impl TrackInfo {
     pub fn new<T: AsRef<Utf8Path>>(file: Option<T>, title: String, duration: u64, artist: String, album: Option<String>) -> Self {
         Self {
-            file: file.and_then(|x| Some(Utf8PathBuf::from(x.as_ref()))),
+            file: file.map(|x| Utf8PathBuf::from(x.as_ref())),
             title: Some(title),
             duration: Some(duration),
             artist: Some(artist),
@@ -120,7 +115,7 @@ impl TrackInfo {
     }
 
     pub fn duration(&self) -> Option<u64> {
-        self.duration.and_then(|x| Some(x))
+        self.duration
     }
 
     pub fn artist(&self) -> Option<&String> {

@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use crate::{
     playlist::{Playlist, TracksFile},
     path_from,
@@ -132,7 +133,7 @@ impl Widget for TuiPicker<'_> {
         let mut text = Text::default();
         for (par_begin, par_end) in par_ranges {
             let n_par_items = par_end - par_begin + 1;
-            let n_par_lines = (n_par_items + n_cols - 1) / n_cols;
+            let n_par_lines = n_par_items.div_ceil(n_cols);
             let n_par_overflow = n_par_items % n_cols;
             for i_offset in 0..n_par_lines {
                 let mut i = par_begin + i_offset;
@@ -272,6 +273,7 @@ impl TuiPickerState {
 }
 
 impl TuiPickerItemState {
+    #[allow(clippy::too_many_arguments)]
     pub fn new<F, G>(playlist: Playlist, shortcut: String, width: usize, shortcut_rpad: usize, state: u8, state_styles: HashMap<u8, Style>, on_refresh: F, on_select: G) -> Self
     where
         F: Fn(u8, &mut Playlist) -> u8 + 'static + Clone,
