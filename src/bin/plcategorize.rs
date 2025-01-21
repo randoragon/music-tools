@@ -169,6 +169,7 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
 enum Action {
     Quit,
     NewChar,
+    DelChar,
     ToggleDelete,
     Refresh,
     ClearInput,
@@ -192,6 +193,10 @@ fn handle_event(ev: Event, input: &mut String) -> Action {
 fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
     if kev.code == KeyCode::Char('q') && input.is_empty() {
         return Action::Quit;
+    }
+
+    if kev.code == KeyCode::Backspace && !input.is_empty() {
+        return Action::DelChar;
     }
 
     if kev.code == KeyCode::Delete && input.is_empty() {
@@ -256,6 +261,9 @@ fn main() -> ExitCode {
                     input.clear();
                 }
             },
+            Action::DelChar => {
+                input.remove(input.len() - 1);
+            }
             Action::ToggleDelete => {
                 app.delete_item_state.select();
                 input.clear();
