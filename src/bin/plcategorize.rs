@@ -246,39 +246,41 @@ fn main() -> ExitCode {
             error!("Failed to draw frame: {e}");
             return ExitCode::FAILURE;
         }
+        if app.picker_state.is_refreshing() {
+            app.picker_state.refresh();
+        } else {
+            // Event handling
+            let ev = match event::read() {
+                Ok(ev) => ev,
+                Err(e) => {
+                    error!("Failed to read event: {e}");
+                    return ExitCode::FAILURE;
+                }
+            };
 
-        // Event handling
-        let ev = match event::read() {
-            Ok(ev) => ev,
-            Err(e) => {
-                error!("Failed to read event: {e}");
-                return ExitCode::FAILURE;
-            }
-        };
-
-        match handle_event(ev, &mut input) {
-            Action::Ignore => {},
-            Action::Quit => break,
-            Action::NewChar => {
-                if !app.picker_state.update_input(&input) {
+            match handle_event(ev, &mut input) {
+                Action::Ignore => {},
+                Action::Quit => break,
+                Action::NewChar => {
+                    if !app.picker_state.update_input(&input) {
+                        input.clear();
+                    }
+                },
+                Action::DelChar => {
+                    input.remove(input.len() - 1);
+                }
+                Action::ToggleDelete => {
+                    app.delete_item_state.select();
                     input.clear();
                 }
-            },
-            Action::DelChar => {
-                input.remove(input.len() - 1);
+                Action::Refresh => {
+                    *CURRENT_TRACK.lock().unwrap() = TrackInfo::default();
+                    app.picker_state.refresh();
+                }
+                Action::ClearInput => {
+                    input.clear();
+                },
             }
-            Action::ToggleDelete => {
-                app.delete_item_state.select();
-                input.clear();
-            }
-            Action::Refresh => {
-                *CURRENT_TRACK.lock().unwrap() = TrackInfo::default();
-                app.picker_state.refresh();
-                // TODO: visual feedback
-            }
-            Action::ClearInput => {
-                input.clear();
-            },
         }
     }
 

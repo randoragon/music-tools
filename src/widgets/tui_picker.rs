@@ -37,6 +37,7 @@ pub struct TuiPickerItem<'a> {
 pub struct TuiPickerState {
     /// A `None` value denotes the start of a new "paragraph" of items.
     items: Vec<Option<TuiPickerItemState>>,
+    is_refreshing: bool,
 }
 
 /// A struct describing the complete state of a `TuiPickerItem`.
@@ -49,6 +50,7 @@ pub struct TuiPickerItemState {
     on_refresh: Box<dyn Fn(u8, &mut Playlist) -> u8>,
     on_select: Box<dyn Fn(u8, &mut Playlist) -> u8>,
     state: u8,
+    is_refreshing: bool,
 }
 
 impl<'a> TuiPicker<'a> {
@@ -66,20 +68,36 @@ impl<'a> TuiPickerItem<'a> {
         let name_style = state.state_styles[&state.state];
         let width = state.shortcut.len() + 1 + state.playlist.name().len();
         let bg_col = if n_input_chars_hl != 0 { Color::DarkGray } else { Color::default() };
-        Self { spans: vec![
-            Span::raw(" ".repeat(state.shortcut_rpad)),
-            Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow().bg(bg_col)),
-            Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan().bg(bg_col)),
-            Span::styled(" ", Style::new().bg(bg_col)),
-            Span::styled(state.playlist.name(), name_style.bg(bg_col)),
-            Span::raw(" ".repeat(
-                if width + state.shortcut_rpad < state.width {
-                    state.width - width - state.shortcut_rpad
-                } else {
-                    0
-                }
-            )),
-        ]}
+        if state.is_refreshing {
+            Self { spans: vec![
+                Span::raw(" ".repeat(state.shortcut_rpad)),
+                Span::styled(&state.shortcut, Style::new().bold().dark_gray()),
+                Span::styled(" ", Style::new().dark_gray()),
+                Span::styled(state.playlist.name(), name_style.dark_gray()),
+                Span::raw(" ".repeat(
+                    if width + state.shortcut_rpad < state.width {
+                        state.width - width - state.shortcut_rpad
+                    } else {
+                        0
+                    }
+                )),
+            ]}
+        } else {
+            Self { spans: vec![
+                Span::raw(" ".repeat(state.shortcut_rpad)),
+                Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow().bg(bg_col)),
+                Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan().bg(bg_col)),
+                Span::styled(" ", Style::new().bg(bg_col)),
+                Span::styled(state.playlist.name(), name_style.bg(bg_col)),
+                Span::raw(" ".repeat(
+                    if width + state.shortcut_rpad < state.width {
+                        state.width - width - state.shortcut_rpad
+                    } else {
+                        0
+                    }
+                )),
+            ]}
+        }
     }
 }
 
@@ -212,13 +230,31 @@ impl TuiPickerState {
             item.shortcut_rpad = shortcut_width - item.shortcut.len();
         }
 
-        Ok(Self { items })
+        Ok(Self {
+            items,
+            is_refreshing: false,
+        })
     }
 
-    pub fn refresh(&mut self) {
-        for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
-            item.refresh();
+    pub fn is_refreshing(&self) -> bool {
+        self.is_refreshing
+    }
+
+    pub fn refresh(&mut self) -> bool {
+        if !self.is_refreshing {
+            for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
+                // The first invocation must yield false
+                assert!(!item.refresh());
+            }
+            self.is_refreshing = true;
+            return false;
         }
+
+        for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
+            assert!(item.refresh());
+        }
+        self.is_refreshing = false;
+        true
     }
 
     pub fn update_input(&mut self, input: &str) -> bool {
@@ -250,11 +286,22 @@ impl TuiPickerItemState {
             on_refresh: Box::new(on_refresh),
             on_select: Box::new(on_select),
             state,
+            is_refreshing: false,
         }
     }
 
-    pub fn refresh(&mut self) {
+    pub fn is_refreshing(&self) -> bool {
+        self.is_refreshing
+    }
+
+    pub fn refresh(&mut self) -> bool {
+        if !self.is_refreshing {
+            self.is_refreshing = true;
+            return false;
+        }
         self.state = (self.on_refresh)(self.state, &mut self.playlist);
+        self.is_refreshing = false;
+        true
     }
 
     pub fn select(&mut self) {
