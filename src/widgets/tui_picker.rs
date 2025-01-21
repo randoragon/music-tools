@@ -180,6 +180,11 @@ impl TuiPickerState {
                 Some(str) => str.to_owned(),
                 None => return Err(anyhow!("Failed to extract shortcut from mappings line: {}", line)),
             };
+            for other_shortcut in items.iter().filter_map(|x| x.as_ref()).map(|x: &TuiPickerItemState| &x.shortcut) {
+                if shortcut.starts_with(other_shortcut) {
+                    return Err(anyhow!("Colliding shortcuts: {}, {}", shortcut, other_shortcut));
+                }
+            }
             shortcut_width = std::cmp::max(shortcut_width, shortcut.len());
             let pl_path = Playlist::playlist_dir().join(name.to_owned() + ".m3u");
             let playlist = match Playlist::open(&pl_path) {
