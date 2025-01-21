@@ -192,16 +192,16 @@ impl TuiPickerState {
                 Err(e) => return Err(anyhow!("Failed to read playlist '{}' from mappings line {}: {}", pl_path, i + 1, e)),
             };
             width = std::cmp::max(width, shortcut.len() + 1 + playlist.name().len() + 2);
-            items.push(Some(TuiPickerItemState {
-                width: 0,  // Will be updated later
-                shortcut_rpad: 0,
+            items.push(Some(TuiPickerItemState::new(
                 playlist,
                 shortcut,
-                state_styles: state_styles.to_owned(),
-                on_refresh: Box::new(on_refresh.clone()),
-                on_select: Box::new(on_select.clone()),
+                0,  // width; will be updated later
+                0,  // shortcut_rpad; will be updated later
                 state,
-            }));
+                state_styles.clone(),
+                on_refresh.clone(),
+                on_select.clone(),
+            )));
         }
 
         for item in items.iter_mut().filter_map(|x| x.as_mut()) {
@@ -236,6 +236,23 @@ impl TuiPickerState {
 }
 
 impl TuiPickerItemState {
+    pub fn new<F, G>(playlist: Playlist, shortcut: String, width: usize, shortcut_rpad: usize, state: u8, state_styles: HashMap<u8, Style>, on_refresh: F, on_select: G) -> Self
+    where
+        F: Fn(u8, &mut Playlist) -> u8 + 'static + Clone,
+        G: Fn(u8, &mut Playlist) -> u8 + 'static + Clone,
+    {
+        Self {
+            playlist,
+            shortcut,
+            width,
+            shortcut_rpad,
+            state_styles,
+            on_refresh: Box::new(on_refresh),
+            on_select: Box::new(on_select),
+            state,
+        }
+    }
+
     pub fn refresh(&mut self) {
         self.state = (self.on_refresh)(self.state, &mut self.playlist);
     }

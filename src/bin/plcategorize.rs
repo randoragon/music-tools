@@ -1,4 +1,5 @@
 use music_tools::{
+    path_from,
     playlist::*,
     track::*,
     widgets::tui_picker::*,
@@ -17,6 +18,8 @@ use std::collections::HashMap;
 use std::process::ExitCode;
 use std::sync::{LazyLock, Mutex};
 
+const DELETE_PLAYLIST: &str = ".Delete.m3u";
+
 static CURRENT_TRACK: LazyLock<Mutex<TrackInfo>> = LazyLock::new(|| {
     Mutex::new(TrackInfo::default())
 });
@@ -24,6 +27,7 @@ static CURRENT_TRACK: LazyLock<Mutex<TrackInfo>> = LazyLock::new(|| {
 struct App {
     title: String,
     picker_state: TuiPickerState,
+    delete_item_state: TuiPickerItemState,
 }
 
 fn on_refresh(_state: u8, playlist: &mut Playlist) -> u8 {
@@ -88,13 +92,40 @@ fn app_init() -> Result<App> {
         (2, Style::new().dark_gray()),
     ]);
     let picker_state = TuiPickerState::new(0, &state_styles, on_refresh, on_select)?;
+
+    let delete_playlist = Playlist::open(path_from(|| Some(Playlist::playlist_dir()), DELETE_PLAYLIST)).unwrap();
+    let delete_item_state = TuiPickerItemState::new(
+        delete_playlist,
+        String::from("DEL"),
+        0,  // width
+        0,  // shortcut_rpad
+        0,  // state
+        HashMap::from([
+            (0, Style::new().red()),
+            (1, Style::new().bold().green()),
+            (2, Style::new().dark_gray()),
+        ]),
+        on_refresh,
+        on_select,
+    );
+
     Ok(App {
         title: String::from(" plcategorize "),
         picker_state,
+        delete_item_state,
     })
 }
 
 fn draw(app: &App, frame: &mut Frame, input: &str) {
+    let title_bar = Line::from(vec![
+        Span::styled(&app.title, Style::new().bold().reversed()),
+        Span::raw(" "),
+        Span::styled("q", Style::new().bold().blue()),
+        Span::raw(" exit  "),
+        Span::styled("ESC", Style::new().bold().blue()),
+        Span::raw(if input.is_empty() { " refresh" } else { " cancel" }),
+    ]);
+
     let layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints(vec![
@@ -104,14 +135,13 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
         ])
         .split(frame.area());
 
-    let title_bar = Line::from(vec![
-        Span::styled(&app.title, Style::new().bold().reversed()),
-        Span::raw(" "),
-        Span::styled("q", Style::new().bold().blue()),
-        Span::raw(" exit  "),
-        Span::styled("ESC", Style::new().bold().blue()),
-        Span::raw(if input.is_empty() { " refresh" } else { " cancel" }),
-    ]);
+    let layout_title_delete = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(vec![
+            Constraint::Length(title_bar.width() as u16 + 2),
+            Constraint::Min(0),
+        ])
+        .split(layout[0]);
 
     let layout_indent = Layout::default()
         .direction(Direction::Horizontal)
@@ -130,7 +160,8 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
         ])
         .split(layout_indent[1]);
 
-    frame.render_widget(title_bar, layout[0]);
+    frame.render_widget(title_bar, layout_title_delete[0]);
+    frame.render_widget(TuiPickerItem::new(&app.delete_item_state, input), layout_title_delete[1]);
     frame.render_widget(CURRENT_TRACK.lock().unwrap().clone(), layout_song_picker[0]);
     frame.render_widget(TuiPicker::new(&app.picker_state, input), layout_song_picker[2]);
 }
@@ -138,6 +169,7 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
 enum Action {
     Quit,
     NewChar,
+    ToggleDelete,
     Refresh,
     ClearInput,
     Ignore,
@@ -160,6 +192,10 @@ fn handle_event(ev: Event, input: &mut String) -> Action {
 fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
     if kev.code == KeyCode::Char('q') && input.is_empty() {
         return Action::Quit;
+    }
+
+    if kev.code == KeyCode::Delete && input.is_empty() {
+        return Action::ToggleDelete;
     }
 
     if kev.code == KeyCode::Esc {
@@ -220,6 +256,10 @@ fn main() -> ExitCode {
                     input.clear();
                 }
             },
+            Action::ToggleDelete => {
+                app.delete_item_state.select();
+                input.clear();
+            }
             Action::Refresh => {
                 *CURRENT_TRACK.lock().unwrap() = TrackInfo::default();
                 app.picker_state.refresh();
