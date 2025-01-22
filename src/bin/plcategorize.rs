@@ -166,7 +166,11 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
         frame.render_widget(TuiPickerItem::new(&app.delete_item_state, input), layout_title_delete[1]);
         frame.render_widget(TuiPicker::new(&app.picker_state, input), layout_song_picker[2]);
     }
-    frame.render_widget(current_track, layout_song_picker[0]);
+    if app.picker_state.is_refreshing() {
+        frame.render_widget(Line::styled("Refreshing ...", Style::new().dark_gray()), layout_song_picker[0]);
+    } else {
+        frame.render_widget(current_track, layout_song_picker[0]);
+    }
 }
 
 enum Action {
