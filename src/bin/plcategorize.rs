@@ -163,7 +163,9 @@ fn draw(app: &App, frame: &mut Frame, input: &str) {
     let current_track = CURRENT_TRACK.lock().unwrap().clone();
     frame.render_widget(title_bar, layout_title_delete[0]);
     if current_track.file().is_some() {
-        frame.render_widget(TuiPickerItem::new(&app.delete_item_state, input), layout_title_delete[1]);
+        if input.is_empty() {
+            frame.render_widget(TuiPickerItem::new(&app.delete_item_state, input), layout_title_delete[1]);
+        }
         frame.render_widget(TuiPicker::new(&app.picker_state, input), layout_song_picker[2]);
     }
     if app.picker_state.is_refreshing() {
