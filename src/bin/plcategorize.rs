@@ -102,7 +102,7 @@ fn app_init() -> Result<App> {
         0,  // state
         HashMap::from([
             (0, Style::new().red()),
-            (1, Style::new().bold().green()),
+            (1, Style::new().bold().white().on_light_red()),
             (2, Style::new().dark_gray().crossed_out()),
         ]),
         on_refresh,
