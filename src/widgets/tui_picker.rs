@@ -8,7 +8,7 @@ use ratatui::{
     layout::Rect,
     buffer::Buffer,
     widgets::Widget,
-    style::{Style, Stylize, Color},
+    style::{Style, Stylize},
 };
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
@@ -66,9 +66,13 @@ impl<'a> TuiPicker<'a> {
 impl<'a> TuiPickerItem<'a> {
     pub fn new(state: &'a TuiPickerItemState, input: &str) -> Self {
         let n_input_chars_hl = if state.shortcut.starts_with(input) { input.len() } else { 0 };
-        let name_style = state.state_styles[&state.state];
         let width = state.shortcut.len() + 1 + state.playlist.name().len();
-        let bg_col = if n_input_chars_hl != 0 { Color::DarkGray } else { Color::default() };
+        let mut name_style = state.state_styles[&state.state];
+        let mut bg_style = Style::new();
+        if n_input_chars_hl != 0 {
+            bg_style = bg_style.on_dark_gray();
+            name_style = name_style.on_dark_gray();
+        };
         if state.is_refreshing {
             Self { spans: vec![
                 Span::raw(" ".repeat(state.shortcut_rpad)),
@@ -86,10 +90,10 @@ impl<'a> TuiPickerItem<'a> {
         } else {
             Self { spans: vec![
                 Span::raw(" ".repeat(state.shortcut_rpad)),
-                Span::styled(&state.shortcut[..n_input_chars_hl], Style::new().bold().yellow().bg(bg_col)),
-                Span::styled(&state.shortcut[n_input_chars_hl..], Style::new().bold().cyan().bg(bg_col)),
-                Span::styled(" ", Style::new().bg(bg_col)),
-                Span::styled(state.playlist.name(), name_style.bg(bg_col)),
+                Span::styled(&state.shortcut[..n_input_chars_hl], bg_style.bold().yellow()),
+                Span::styled(&state.shortcut[n_input_chars_hl..], bg_style.bold().cyan()),
+                Span::styled(" ", bg_style),
+                Span::styled(state.playlist.name(), name_style),
                 Span::raw(" ".repeat(
                     if width + state.shortcut_rpad < state.width {
                         state.width - width - state.shortcut_rpad
