@@ -200,18 +200,7 @@ fn handle_event(ev: Event, input: &mut String) -> Action {
 }
 
 fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
-    if kev.code == KeyCode::Char('q') && input.is_empty() {
-        return Action::Quit;
-    }
-
-    if kev.code == KeyCode::Backspace && !input.is_empty() {
-        return Action::DelChar;
-    }
-
-    if kev.code == KeyCode::Delete && input.is_empty() {
-        return Action::ToggleDelete;
-    }
-
+    let has_selection = CURRENT_TRACK.lock().unwrap().file().is_some();
     if kev.code == KeyCode::Esc {
         if !input.is_empty() {
             return Action::ClearInput;
@@ -220,13 +209,26 @@ fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
         }
     }
 
-    match kev.code {
-        KeyCode::Char(c) => {
-            input.push(c);
-            Action::NewChar
-        },
-        _ => Action::Ignore,
+    if kev.code == KeyCode::Char('q') && input.is_empty() {
+        return Action::Quit;
     }
+
+    if has_selection {
+        if kev.code == KeyCode::Backspace && !input.is_empty() {
+            return Action::DelChar;
+        }
+
+        if kev.code == KeyCode::Delete && input.is_empty() {
+            return Action::ToggleDelete;
+        }
+
+        if let KeyCode::Char(c) = kev.code {
+            input.push(c);
+            return Action::NewChar;
+        }
+    }
+
+    Action::Ignore
 }
 
 fn main() -> ExitCode {
