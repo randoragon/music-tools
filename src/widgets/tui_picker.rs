@@ -138,7 +138,7 @@ impl Widget for TuiPicker<'_> {
         for (par_begin, par_end) in par_ranges {
             let n_par_items = par_end - par_begin + 1;
             let n_par_lines = n_par_items.div_ceil(n_cols);
-            let n_par_overflow = n_par_items % n_cols;
+            let n_par_overflow = if n_par_items % n_cols != 0 { n_par_items % n_cols } else { n_cols };
             for i_offset in 0..n_par_lines {
                 let mut i = par_begin + i_offset;
                 let mut line = Line::default();
@@ -152,8 +152,8 @@ impl Widget for TuiPicker<'_> {
                     // skip all items that will be below us in a column. That number is always
                     // either n_par_lines, or n_par_lines-1 (if the final row is not full).
                     // In addition, we must always skip at least 1 item.
-                    i += std::cmp::max(1, n_par_lines - if x <= n_par_overflow { 0 } else { 1 });
-                    if i_offset == n_par_lines - 1 && n_par_overflow != 0 && x >= n_par_overflow {
+                    i += std::cmp::max(1, n_par_lines - if x > n_par_overflow { 1 } else { 0 });
+                    if i_offset == n_par_lines - 1 && x >= n_par_overflow {
                         break;
                     } else {
                         x += 1;
