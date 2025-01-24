@@ -247,6 +247,7 @@ fn main() -> ExitCode {
     let mut input = String::with_capacity(32);
     let mut terminal = ratatui::init();
     app.picker_state.refresh();
+    app.delete_item_state.refresh();
     loop {
         if let Err(e) = terminal.draw(|x| draw(&app, x, &input)) {
             error!("Failed to draw frame: {e}");
@@ -254,6 +255,7 @@ fn main() -> ExitCode {
         }
         if app.picker_state.is_refreshing() {
             app.picker_state.refresh();
+            app.delete_item_state.refresh();
         } else {
             // Event handling
             let ev = match event::read() {
@@ -282,6 +284,7 @@ fn main() -> ExitCode {
                 Action::Refresh => {
                     *CURRENT_TRACK.lock().unwrap() = TrackInfo::default();
                     app.picker_state.refresh();
+                    app.delete_item_state.refresh();
                 }
                 Action::ClearInput => {
                     input.clear();
