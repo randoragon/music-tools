@@ -7,7 +7,7 @@ use ratatui::{
     text::{Text, Line, Span},
     layout::Rect,
     buffer::Buffer,
-    widgets::Widget,
+    widgets::{Widget, StatefulWidget},
     style::{Style, Stylize},
 };
 use anyhow::{anyhow, Result};
@@ -25,7 +25,6 @@ pub fn playlist_mappings_path() -> &'static Utf8Path {
 
 /// A custom ratatui widget of a playlist selector menu.
 pub struct TuiPicker<'a> {
-    state_ref: &'a TuiPickerState,
     input: &'a str,
 }
 
@@ -36,6 +35,7 @@ pub struct TuiPickerItem<'a> {
 
 /// A struct describing the complete state of a `TuiPicker`.
 pub struct TuiPickerState {
+    pub scroll_amount: usize,
     /// A `None` value denotes the start of a new "paragraph" of items.
     items: Vec<Option<TuiPickerItemState>>,
     is_refreshing: bool,
@@ -55,11 +55,8 @@ pub struct TuiPickerItemState {
 }
 
 impl<'a> TuiPicker<'a> {
-    pub fn new(state: &'a TuiPickerState, input: &'a str) -> Self {
-        Self {
-            state_ref: state,
-            input,
-        }
+    pub fn new(input: &'a str) -> Self {
+        Self { input }
     }
 }
 
@@ -106,32 +103,13 @@ impl<'a> TuiPickerItem<'a> {
     }
 }
 
-impl Widget for TuiPicker<'_> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        let items = &self.state_ref.items;  // Shorthand
+impl StatefulWidget for TuiPicker<'_> {
+    type State = TuiPickerState;
 
-        // Compute the number of columns
-        let item_width = match items.iter()
-            .filter_map(|x| if x.is_some() { Some(x.as_ref().unwrap().width) } else { None })
-            .next() {
-            Some(w) => w,
-            None => return,  // Nothing to render
-        };
-        let n_cols = (area.width as usize / item_width).clamp(1, 5);
-
-        // Find index ranges for each "paragraph".
-        // At this point it is guaranteed that there is at least one Some(Item).
-        let mut par_ranges = vec![(0usize, usize::MAX)];
-        for i in 0..items.len() {
-            if items[i].is_none() {
-                par_ranges.last_mut().unwrap().1 = i - 1;
-                #[allow(clippy::int_plus_one)]
-                if items.len() >= i + 1 {
-                    par_ranges.push((i + 1, usize::MAX));
-                }
-            }
-        }
-        par_ranges.last_mut().unwrap().1 = items.len() - 1;
+    fn render(self, area: Rect, buf: &mut Buffer, state: &mut Self::State) {
+        let items = &state.items;  // Shorthand
+        let n_cols = state.compute_n_columns(area.width as usize);
+        let par_ranges = state.compute_paragraph_ranges();
 
         // Compose the text to render
         let mut text = Text::default();
@@ -163,6 +141,12 @@ impl Widget for TuiPicker<'_> {
             }
             text.push_line(Line::default());  // Separator
         }
+        assert_eq!(text.lines.len(), state.height(area.width as usize));
+
+        // Apply scrolling
+        let max_scroll = text.lines.len().saturating_sub(area.height as usize);
+        state.scroll_amount = state.scroll_amount.clamp(0, max_scroll);
+        text.lines.drain(0..state.scroll_amount);
 
         text.render(area, buf);
     }
@@ -237,6 +221,7 @@ impl TuiPickerState {
 
         Ok(Self {
             items,
+            scroll_amount: 0,
             is_refreshing: false,
         })
     }
@@ -273,6 +258,62 @@ impl TuiPickerState {
             }
         }
         false
+    }
+
+    /// Computes the number of columns that the widget would take, given an area width.
+    pub fn compute_n_columns(&self, area_width: usize) -> usize {
+        if let Some(item) = self.items.iter().filter_map(|x| x.as_ref()).next() {
+            (area_width / item.width).clamp(1, 5)
+        } else {
+            0
+        }
+    }
+
+    /// Computes the width of the whole widget, given an area width.
+    pub fn width(&self, area_width: usize) -> usize {
+        if let Some(item) = self.items.iter().filter_map(|x| x.as_ref()).next() {
+            let n_cols = self.compute_n_columns(area_width);
+            item.width * n_cols
+        } else {
+            0
+        }
+    }
+
+    /// Computes the height of the whole widget, given an area width.
+    pub fn height(&self, area_width: usize) -> usize {
+        let n_cols = self.compute_n_columns(area_width);
+        if n_cols == 0 {
+            return 0;
+        }
+        let par_ranges = self.compute_paragraph_ranges();
+        let mut height = 0;
+        for (par_begin, par_end) in par_ranges {
+            let n_par_items = par_end - par_begin + 1;
+            let n_par_lines = n_par_items.div_ceil(n_cols);
+            height += n_par_lines + 1;  // +1 for separator between paragraphs
+        }
+        height
+    }
+
+    /// Computes index ranges of all paragraphs of items.
+    ///
+    /// E.g. `vec![(0, 3), (4, 4), (5, 13)]`
+    fn compute_paragraph_ranges(&self) -> Vec<(usize, usize)> {
+        if self.items.is_empty() {
+            return vec![(0, 0)];
+        }
+        let mut par_ranges = vec![(0usize, usize::MAX)];
+        for i in 0..self.items.len() {
+            if self.items[i].is_none() {
+                par_ranges.last_mut().unwrap().1 = i - 1;
+                #[allow(clippy::int_plus_one)]
+                if self.items.len() >= i + 1 {
+                    par_ranges.push((i + 1, usize::MAX));
+                }
+            }
+        }
+        par_ranges.last_mut().unwrap().1 = self.items.len() - 1;
+        par_ranges
     }
 }
 
