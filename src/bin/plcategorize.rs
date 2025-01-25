@@ -257,6 +257,9 @@ fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
     if kev.code == KeyCode::Char('q') && input.is_empty() {
         return Action::Quit;
     }
+    if kev.modifiers == KeyModifiers::CONTROL && kev.code == KeyCode::Char('c') {
+        return Action::Quit;
+    }
 
     if has_selection {
         if kev.code == KeyCode::Backspace && !input.is_empty() {
