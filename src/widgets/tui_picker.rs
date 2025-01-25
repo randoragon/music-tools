@@ -188,7 +188,7 @@ impl TuiPickerState {
                 None => return Err(anyhow!("Failed to extract shortcut from mappings line: {}", line)),
             };
             for other_shortcut in items.iter().filter_map(|x| x.as_ref()).map(|x: &TuiPickerItemState| &x.shortcut) {
-                if shortcut.starts_with(other_shortcut) {
+                if shortcut.starts_with(other_shortcut) || other_shortcut.starts_with(&shortcut) {
                     return Err(anyhow!("Colliding shortcuts: {}, {}", shortcut, other_shortcut));
                 }
             }
