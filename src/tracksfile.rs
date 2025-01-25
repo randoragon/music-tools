@@ -23,6 +23,11 @@ pub trait TracksFile {
     /// Works like `open()` if the file exists, and like `new()` if it doesn't.
     fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized;
 
+    /// Reads file contents from disk and loads them, discarding what's currently in memory.
+    /// In case of failures (parsing error, missing file, etc.), the memory contents remain
+    /// in-tact.
+    fn reload(&mut self) -> Result<()>;
+
     /// Returns an iterator over all objects.
     /// The objects are not all loaded into memory at once; they are created on-demand only.
     fn iter() -> Result<impl Iterator<Item = Self>> where Self: Sized;

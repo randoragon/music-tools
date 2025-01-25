@@ -2,5 +2,7 @@
 pkgs.mkShell {
   nativeBuildInputs = with pkgs; [
     cargo clippy
+    rustc
+    gdb
   ];
 }

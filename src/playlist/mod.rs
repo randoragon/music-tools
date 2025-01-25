@@ -113,33 +113,7 @@ impl Playlist {
 impl TracksFile for Playlist {
     fn open<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> {
         let mut pl = Self::new(fpath)?;
-
-        let file = BufReader::new(File::open(&pl.path)?);
-        for line in file.lines() {
-            let line = match line {
-                Ok(str) => str,
-                Err(e) => return Err(anyhow!("Failed to read line from '{}': {}", pl.path, e)),
-            };
-            let track = Track::new(&line);
-            if pl.tracks_map.contains_key(&track) {
-                pl.tracks_map.get_mut(&track)
-                    .unwrap()
-                    .push(pl.tracks.len());
-                pl.tracks.push(track);
-            } else {
-                let list = vec![pl.tracks.len()];
-                pl.tracks_map.insert(track.clone(), list);
-                pl.tracks.push(track);
-            }
-        }
-
-        // Don't represent empty files with a single empty track
-        if pl.tracks.len() == 1 && pl.tracks[0].path.as_str().is_empty() {
-            pl.tracks.clear();
-            pl.tracks_map.clear();
-        }
-
-        debug_assert!(pl.verify_integrity());
+        pl.reload()?;
         Ok(pl)
     }
 
@@ -163,6 +137,42 @@ impl TracksFile for Playlist {
             true => Self::open(fpath),
             false => Self::new(fpath),
         }
+    }
+
+    fn reload(&mut self) -> Result<()> {
+        let mut tracks_new = Vec::new();
+        let mut tracks_map_new = HashMap::<Track, Vec<usize>>::new();
+
+        let file = BufReader::new(File::open(&self.path)?);
+        for line in file.lines() {
+            let line = match line {
+                Ok(str) => str,
+                Err(e) => return Err(anyhow!("Failed to read line from '{}': {}", self.path, e)),
+            };
+            let track = Track::new(&line);
+            if tracks_map_new.contains_key(&track) {
+                tracks_map_new.get_mut(&track)
+                    .unwrap()
+                    .push(tracks_new.len());
+                tracks_new.push(track);
+            } else {
+                let list = vec![tracks_new.len()];
+                tracks_map_new.insert(track.clone(), list);
+                tracks_new.push(track);
+            }
+        }
+
+        // Don't represent empty files with a single empty track
+        if tracks_new.len() == 1 && tracks_new[0].path.as_str().is_empty() {
+            tracks_new.clear();
+            tracks_map_new.clear();
+        }
+
+        self.tracks = tracks_new;
+        self.tracks_map = tracks_map_new;
+        self.is_modified = false;
+        debug_assert!(self.verify_integrity());
+        Ok(())
     }
 
     fn iter() -> Result<impl Iterator<Item = Self>> {
