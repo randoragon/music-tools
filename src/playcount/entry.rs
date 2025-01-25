@@ -40,7 +40,7 @@ impl Entry {
     pub fn new<T: AsRef<Utf8Path>>(fpath: T, duration: Option<Duration>, artist: Option<String>, album_artist: Option<Option<String>>, album: Option<Option<String>>, title: Option<String>) -> Result<Self> {
         let duration = match duration {
             Some(duration) => duration,
-            None => match compute_duration(&fpath.as_ref()) {
+            None => match compute_duration(fpath.as_ref()) {
                 Ok(val) => val,
                 Err(e) => return Err(anyhow!("Failed to measure the duration of '{}': {}", fpath.as_ref(), e)),
             },
