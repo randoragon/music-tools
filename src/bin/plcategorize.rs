@@ -211,6 +211,8 @@ enum Action {
     Ignore,
     ScrollUp,
     ScrollDown,
+    ScrollUpMore,
+    ScrollDownMore,
 }
 
 /// Handles a crossterm event.
@@ -251,6 +253,12 @@ fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
         }
         if kev.code == KeyCode::Char('j') {
             return Action::ScrollDown;
+        }
+        if kev.code == KeyCode::Char('u') {
+            return Action::ScrollUpMore;
+        }
+        if kev.code == KeyCode::Char('d') {
+            return Action::ScrollDownMore;
         }
     }
 
@@ -354,6 +362,14 @@ fn main() -> ExitCode {
                 Action::ScrollDown => {
                     let scroll_amount = &mut app.picker_state.scroll_amount;
                     *scroll_amount = scroll_amount.saturating_add(1);
+                }
+                Action::ScrollUpMore => {
+                    let scroll_amount = &mut app.picker_state.scroll_amount;
+                    *scroll_amount = scroll_amount.saturating_sub(10);
+                }
+                Action::ScrollDownMore => {
+                    let scroll_amount = &mut app.picker_state.scroll_amount;
+                    *scroll_amount = scroll_amount.saturating_add(10);
                 }
             }
         }
