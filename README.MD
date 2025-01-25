@@ -14,6 +14,9 @@ public in mind. The conventions are listed below. Use at your own risk.
     - Keep track of how much time was spent listening to what music.
     - Print command-line summaries over a period of time.
     - Generate playlists of least and most listened to tracks.
+3. `plcategorize`
+    - Efficient TUI for adding or removing the current MPD song to playlists
+    - Reads configuration from ~/.playlist-mappings.tsv
 
 ## Conventions
 
