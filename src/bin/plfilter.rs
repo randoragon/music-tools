@@ -12,7 +12,7 @@ use ratatui::{
 };
 use log::error;
 use anyhow::Result;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::ExitCode;
 
 struct App {
@@ -58,7 +58,6 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         Span::raw(" "),
         Span::styled("q", Style::new().bold().blue()),
         Span::raw(" exit  "),
-        // TODO: display n_selected_tracks
     ]);
 
     let layout = Layout::default()
@@ -70,10 +69,11 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         ])
         .split(frame.area());
 
-    let layout_title_filtered = Layout::default()
+    let layout_title_mpd_filtered = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Length(title_bar.width() as u16 + 2),
+            Constraint::Min(0), // TODO: fix alignment?
             Constraint::Min(0),
         ])
         .split(layout[0]);
@@ -94,8 +94,9 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         ])
         .split(layout_indent[1]);
 
-    frame.render_widget(title_bar, layout_title_filtered[0]);
-    // TODO: Render n_filtered at layout_title_filtered[1]
+    frame.render_widget(title_bar, layout_title_mpd_filtered[0]);
+    // TODO: Render mpd at layout_title_filtered[1]
+    // TODO: Render n_filtered at layout_title_filtered[2]
 
     frame.render_stateful_widget(
         TuiPicker::new(input),
@@ -132,13 +133,6 @@ enum Action {
     ScrollDownMore,
 }
 
-/// Handles a crossterm event.
-///
-/// Return values:
-/// - 0: quit application
-/// - 1: default (add to input buffer)
-/// - 2: refresh UI
-/// - 3: clear input
 fn handle_event(ev: Event, input: &mut String) -> Action {
     match ev {
         Event::Key(kev) => handle_key_event(kev, input),
