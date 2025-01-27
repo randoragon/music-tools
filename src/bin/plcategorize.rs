@@ -215,13 +215,6 @@ enum Action {
     ScrollDownMore,
 }
 
-/// Handles a crossterm event.
-///
-/// Return values:
-/// - 0: quit application
-/// - 1: default (add to input buffer)
-/// - 2: refresh UI
-/// - 3: clear input
 fn handle_event(ev: Event, input: &mut String) -> Action {
     match ev {
         Event::Key(kev) => handle_key_event(kev, input),
