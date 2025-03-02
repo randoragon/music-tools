@@ -362,6 +362,10 @@ impl TuiPickerItemState {
         }
     }
 
+    pub fn state(&self) -> u8 {
+        self.state
+    }
+
     pub fn is_refreshing(&self) -> bool {
         self.is_refreshing
     }
