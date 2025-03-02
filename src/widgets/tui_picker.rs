@@ -312,6 +312,14 @@ impl TuiPickerState {
         height
     }
 
+    /// Returns all playlists with matching state value.
+    pub fn get_playlists_with_state(&self, state: u8) -> Vec<&Playlist> {
+        self.items.iter().filter_map(|x| x.as_ref())
+            .filter(|&x| x.state == state)
+            .map(|x| &x.playlist)
+            .collect::<Vec<&Playlist>>()
+    }
+
     /// Computes index ranges of all paragraphs of items.
     ///
     /// E.g. `vec![(0, 3), (4, 4), (5, 13)]`
