@@ -146,6 +146,14 @@ impl TracksFile for Playlist {
         Ok(pl)
     }
 
+    fn len(&self) -> usize {
+        self.tracks.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.tracks.is_empty()
+    }
+
     fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized {
         match fpath.as_ref().exists() {
             true => Self::open(fpath),

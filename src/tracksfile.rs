@@ -19,6 +19,11 @@ pub trait TracksFile {
     /// for a potential future call to `write()`. Be careful not to overwrite an existing file!
     fn new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized;
 
+    /// Returns the length of the number of tracks inside the object.
+    fn len(&self) -> usize;
+
+    /// Returns whether the object is empty (contains no tracks).
+    fn is_empty(&self) -> bool;
 
     /// Works like `open()` if the file exists, and like `new()` if it doesn't.
     fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized;
