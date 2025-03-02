@@ -114,6 +114,14 @@ impl TracksFile for Playcount {
         })
     }
 
+    fn len(&self) -> usize {
+        self.entries.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized {
         match fpath.as_ref().exists() {
             true => Self::open(fpath),

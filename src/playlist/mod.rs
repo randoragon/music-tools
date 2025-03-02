@@ -108,6 +108,20 @@ impl Playlist {
     pub fn name(&self) -> &String {
         &self.name
     }
+
+    /// Same as `push()`, but for `Track` objects. For convenience and to avoid constructing
+    /// unnecessary new `Track`s.
+    pub fn push_track(&mut self, track: Track) -> Result<()> {
+        if let Some(v) = self.tracks_map.get_mut(&track) {
+            v.push(self.tracks.len());
+        } else {
+            self.tracks_map.insert(track.clone(), vec![self.tracks.len()]);
+        }
+        self.tracks.push(track);
+        self.is_modified = true;
+        debug_assert!(self.verify_integrity());
+        Ok(())
+    }
 }
 
 impl TracksFile for Playlist {
@@ -130,6 +144,14 @@ impl TracksFile for Playlist {
             None => return Err(anyhow!("Failed to extract filename from '{:?}'", pl.path)),
         }
         Ok(pl)
+    }
+
+    fn len(&self) -> usize {
+        self.tracks.len()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.tracks.is_empty()
     }
 
     fn open_or_new<T: AsRef<Utf8Path>>(fpath: T) -> Result<Self> where Self: Sized {
@@ -229,17 +251,7 @@ impl TracksFile for Playlist {
     }
 
     fn push<T: AsRef<Utf8Path>>(&mut self, fpath: T) -> Result<()> {
-        let track = Track::new(fpath);
-
-        if let Some(v) = self.tracks_map.get_mut(&track) {
-            v.push(self.tracks.len());
-        } else {
-            self.tracks_map.insert(track.clone(), vec![self.tracks.len()]);
-        }
-        self.tracks.push(track);
-        self.is_modified = true;
-        debug_assert!(self.verify_integrity());
-        Ok(())
+        self.push_track(Track::new(fpath))
     }
 
     fn remove_last(&mut self, track: &Track) -> bool {

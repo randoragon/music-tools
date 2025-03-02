@@ -39,6 +39,7 @@ pub struct TuiPickerState {
     /// A `None` value denotes the start of a new "paragraph" of items.
     items: Vec<Option<TuiPickerItemState>>,
     is_refreshing: bool,
+    did_select: bool,
 }
 
 /// A struct describing the complete state of a `TuiPickerItem`.
@@ -223,13 +224,25 @@ impl TuiPickerState {
             items,
             scroll_amount: 0,
             is_refreshing: false,
+            did_select: false,
         })
     }
 
+    /// Returns whether a refresh is in progress. See `refresh()`.
     pub fn is_refreshing(&self) -> bool {
         self.is_refreshing
     }
 
+    /// Returns whether the last call to `update_input()` caused an item selection.
+    pub fn did_select(&self) -> bool {
+        self.did_select
+    }
+
+    /// Calls `on_refresh` for every item. The first call to this method initiates a refresh. Then,
+    /// subsequent calls must be made until `is_refreshing()` returns `false`.
+    /// The reason is that it internally calls refresh for each item one by one. This design allows
+    /// you to redraw the screen while the refresh is happening, and implement e.g. animations
+    /// while keeping the program single-threaded.
     pub fn refresh(&mut self) -> bool {
         if !self.is_refreshing {
             for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
@@ -247,10 +260,14 @@ impl TuiPickerState {
         true
     }
 
+    /// Updates the input string. Returns `true` if at least one item is matching the current
+    /// input, `false` if input should be cleared and started from scratch.
     pub fn update_input(&mut self, input: &str) -> bool {
+        self.did_select = false;
         for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
             if item.shortcut == input {
                 item.select();
+                self.did_select = true;
                 return false;
             }
             if item.shortcut.starts_with(input) {
@@ -295,6 +312,14 @@ impl TuiPickerState {
         height
     }
 
+    /// Returns all playlists with matching state value.
+    pub fn get_playlists_with_state(&self, state: u8) -> Vec<&Playlist> {
+        self.items.iter().filter_map(|x| x.as_ref())
+            .filter(|&x| x.state == state)
+            .map(|x| &x.playlist)
+            .collect::<Vec<&Playlist>>()
+    }
+
     /// Computes index ranges of all paragraphs of items.
     ///
     /// E.g. `vec![(0, 3), (4, 4), (5, 13)]`
@@ -337,6 +362,10 @@ impl TuiPickerItemState {
         }
     }
 
+    pub fn state(&self) -> u8 {
+        self.state
+    }
+
     pub fn is_refreshing(&self) -> bool {
         self.is_refreshing
     }
@@ -353,5 +382,9 @@ impl TuiPickerItemState {
 
     pub fn select(&mut self) {
         self.state = (self.on_select)(self.state, &mut self.playlist);
+    }
+
+    pub fn width(&self) -> usize {
+        self.shortcut.len() + self.shortcut_rpad + self.playlist.name().len() + 2
     }
 }
