@@ -1,5 +1,8 @@
 use music_tools::{
+    path_from,
+    library_songs,
     playlist::*,
+    track::*,
     widgets::tui_picker::*,
 };
 use crossterm::event::{self, Event, KeyCode, KeyModifiers, MouseEventKind};
@@ -12,7 +15,7 @@ use ratatui::{
 };
 use log::error;
 use anyhow::Result;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::process::ExitCode;
 
 struct App {
@@ -21,9 +24,12 @@ struct App {
     scroll_state: ScrollbarState,
 }
 
-fn on_refresh(_state: u8, _playlist: &mut Playlist) -> u8 {
-    // TODO: Implement or remove
-    0
+fn on_refresh(state: u8, playlist: &mut Playlist) -> u8 {
+    *playlist = match Playlist::open(playlist.path()) {
+        Ok(pl) => pl,
+        Err(_) => return 3,
+    };
+    state
 }
 
 fn on_select(mut state: u8, _playlist: &mut Playlist) -> u8 {
@@ -32,15 +38,14 @@ fn on_select(mut state: u8, _playlist: &mut Playlist) -> u8 {
     } else {
         state = (state + 1) % 3;
     }
-    // TODO
     state
 }
 
 fn app_init() -> Result<App> {
     let state_styles = HashMap::from([
         (0, Style::new().gray()),
-        (1, Style::new().bold().red()),
-        (2, Style::new().bold().green()),
+        (1, Style::new().bold().green()),
+        (2, Style::new().bold().red()),
         (3, Style::new().dark_gray().crossed_out()),
     ]);
     let picker_state = TuiPickerState::new(0, &state_styles, on_refresh, on_select)?;
@@ -58,7 +63,6 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         Span::raw(" "),
         Span::styled("q", Style::new().bold().blue()),
         Span::raw(" exit  "),
-        // TODO: display n_selected_tracks
     ]);
 
     let layout = Layout::default()
@@ -70,10 +74,11 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         ])
         .split(frame.area());
 
-    let layout_title_filtered = Layout::default()
+    let layout_title_mpd_filtered = Layout::default()
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Length(title_bar.width() as u16 + 2),
+            Constraint::Min(0), // TODO: fix alignment?
             Constraint::Min(0),
         ])
         .split(layout[0]);
@@ -94,8 +99,9 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         ])
         .split(layout_indent[1]);
 
-    frame.render_widget(title_bar, layout_title_filtered[0]);
-    // TODO: Render n_filtered at layout_title_filtered[1]
+    frame.render_widget(title_bar, layout_title_mpd_filtered[0]);
+    // TODO: Render mpd at layout_title_filtered[1]
+    // TODO: Render n_filtered at layout_title_filtered[2]
 
     frame.render_stateful_widget(
         TuiPicker::new(input),
@@ -132,13 +138,6 @@ enum Action {
     ScrollDownMore,
 }
 
-/// Handles a crossterm event.
-///
-/// Return values:
-/// - 0: quit application
-/// - 1: default (add to input buffer)
-/// - 2: refresh UI
-/// - 3: clear input
 fn handle_event(ev: Event, input: &mut String) -> Action {
     match ev {
         Event::Key(kev) => handle_key_event(kev, input),
@@ -205,6 +204,23 @@ fn handle_mouse_event(mev: event::MouseEvent) -> Action {
     }
 }
 
+fn generate_filtered_playlist(picker_state: &TuiPickerState) -> Result<()> {
+    let mut playlist = Playlist::new(path_from(|| Some(Playlist::playlist_dir()), ".Filtered.m3u"))?;
+    // TODO: optimize -- we do not need to start with all songs if at least one item is green
+    let mut tracks: HashSet<Track> = library_songs().iter().map(Track::new).into_iter().collect();
+    for pl in picker_state.get_playlists_with_state(1) {
+        tracks = tracks.into_iter().filter(|x| pl.contains(x)).collect();
+    }
+    for pl in picker_state.get_playlists_with_state(2) {
+        tracks = tracks.into_iter().filter(|x| !pl.contains(x)).collect();
+    }
+    for track in tracks {
+        playlist.push_track(track)?;
+    }
+    playlist.write()?;
+    Ok(())
+}
+
 fn main() -> ExitCode {
     stderrlog::new()
         .module(module_path!())
@@ -247,12 +263,18 @@ fn main() -> ExitCode {
                     if !app.picker_state.update_input(&input) {
                         input.clear();
                     }
+                    if app.picker_state.did_select() {
+                        if let Err(e) = generate_filtered_playlist(&app.picker_state) {
+                            error!("Failed to generated .Filtered.m3u: {e}");
+                            return ExitCode::FAILURE;
+                        }
+                    }
                 },
                 Action::DelChar => {
                     input.remove(input.len() - 1);
                 }
                 Action::Refresh => {
-                    // TODO: Implement or delete
+                    app.picker_state.refresh();
                 }
                 Action::ClearInput => {
                     input.clear();
