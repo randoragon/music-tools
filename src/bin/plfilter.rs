@@ -1,5 +1,6 @@
 use music_tools::{
     path_from,
+    mpd::*,
     library_songs,
     playlist::*,
     track::*,
@@ -21,6 +22,7 @@ use std::process::ExitCode;
 struct App {
     title: String,
     picker_state: TuiPickerState,
+    mpd_item_state: TuiPickerItemState,
     scroll_state: ScrollbarState,
 }
 
@@ -49,10 +51,27 @@ fn app_init() -> Result<App> {
         (3, Style::new().dark_gray().crossed_out()),
     ]);
     let picker_state = TuiPickerState::new(0, &state_styles, on_refresh, on_select)?;
+    let mpd_playlist = Playlist::new("mpd").unwrap();  // File name is display-only
+    let mpd_item_state = TuiPickerItemState::new(
+        mpd_playlist,
+        String::from("."),
+        0,  // width
+        0,  // shortcut_rpad
+        0,  // state
+        HashMap::from([
+            (0, Style::new().gray()),
+            (1, Style::new().bold().green()),
+            (2, Style::new().bold().red()),
+            (3, Style::new().dark_gray().crossed_out()),
+        ]),
+        on_refresh,
+        on_select,
+    );
 
     Ok(App {
         title: String::from(" plfilter "),
         picker_state,
+        mpd_item_state,
         scroll_state: ScrollbarState::default(),
     })
 }
@@ -100,7 +119,7 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         .split(layout_indent[1]);
 
     frame.render_widget(title_bar, layout_title_mpd_filtered[0]);
-    // TODO: Render mpd at layout_title_filtered[1]
+    frame.render_widget(TuiPickerItem::new(&app.mpd_item_state, input), layout_title_mpd_filtered[1]);
     // TODO: Render n_filtered at layout_title_filtered[2]
 
     frame.render_stateful_widget(
@@ -129,6 +148,7 @@ enum Action {
     Quit,
     NewChar,
     DelChar,
+    ToggleMPD,
     Refresh,
     ClearInput,
     Ignore,
@@ -188,6 +208,10 @@ fn handle_key_event(kev: event::KeyEvent, input: &mut String) -> Action {
         return Action::DelChar;
     }
 
+    if kev.code == KeyCode::Char('.') && input.is_empty() {
+        return Action::ToggleMPD;
+    }
+
     if let KeyCode::Char(c) = kev.code {
         input.push(c);
         return Action::NewChar;
@@ -204,15 +228,28 @@ fn handle_mouse_event(mev: event::MouseEvent) -> Action {
     }
 }
 
-fn generate_filtered_playlist(picker_state: &TuiPickerState) -> Result<()> {
+fn generate_filtered_playlist(picker_state: &TuiPickerState, mpd_item_state: &TuiPickerItemState) -> Result<()> {
     let mut playlist = Playlist::new(path_from(|| Some(Playlist::playlist_dir()), ".Filtered.m3u"))?;
     // TODO: optimize -- we do not need to start with all songs if at least one item is green
     let mut tracks: HashSet<Track> = library_songs().iter().map(Track::new).into_iter().collect();
+    let mpd_tracks = match mpd_item_state.state() {
+        1 | 2 => {
+            let mut conn = mpd_connect()?;
+            conn.queue()?.into_iter().map(|x| Track::new(x.file)).collect()
+        },
+        _ => vec![],
+    };
     for pl in picker_state.get_playlists_with_state(1) {
         tracks = tracks.into_iter().filter(|x| pl.contains(x)).collect();
     }
+    if mpd_item_state.state() == 1 {
+        tracks = tracks.into_iter().filter(|x| mpd_tracks.contains(x)).collect();
+    }
     for pl in picker_state.get_playlists_with_state(2) {
         tracks = tracks.into_iter().filter(|x| !pl.contains(x)).collect();
+    }
+    if mpd_item_state.state() == 2 {
+        tracks = tracks.into_iter().filter(|x| !mpd_tracks.contains(x)).collect();
     }
     for track in tracks {
         playlist.push_track(track)?;
@@ -264,7 +301,7 @@ fn main() -> ExitCode {
                         input.clear();
                     }
                     if app.picker_state.did_select() {
-                        if let Err(e) = generate_filtered_playlist(&app.picker_state) {
+                        if let Err(e) = generate_filtered_playlist(&app.picker_state, &app.mpd_item_state) {
                             error!("Failed to generated .Filtered.m3u: {e}");
                             return ExitCode::FAILURE;
                         }
@@ -273,6 +310,14 @@ fn main() -> ExitCode {
                 Action::DelChar => {
                     input.remove(input.len() - 1);
                 }
+                Action::ToggleMPD => {
+                    app.mpd_item_state.select();
+                    input.clear();
+                    if let Err(e) = generate_filtered_playlist(&app.picker_state, &app.mpd_item_state) {
+                        error!("Failed to generated .Filtered.m3u: {e}");
+                        return ExitCode::FAILURE;
+                    }
+                },
                 Action::Refresh => {
                     app.picker_state.refresh();
                 }
