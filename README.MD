@@ -17,6 +17,10 @@ public in mind. The conventions are listed below. Use at your own risk.
 3. `plcategorize`
     - Efficient TUI for adding or removing the current MPD song to playlists
     - Reads configuration from ~/.playlist-mappings.tsv
+4. `plfilter`
+    - Efficient TUI for creating a ".Filtered.m3u" playlist by intersecting and
+      excluding other playlists
+    - Reads configuration from ~/.playlist-mappings.tsv
 
 ## Conventions
 
