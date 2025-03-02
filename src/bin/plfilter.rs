@@ -1,6 +1,7 @@
 use music_tools::{
     path_from,
     mpd::*,
+    library_size,
     library_songs,
     playlist::*,
     track::*,
@@ -24,6 +25,7 @@ struct App {
     picker_state: TuiPickerState,
     mpd_item_state: TuiPickerItemState,
     scroll_state: ScrollbarState,
+    filtered_len: usize,
 }
 
 fn on_refresh(state: u8, playlist: &mut Playlist) -> u8 {
@@ -73,6 +75,7 @@ fn app_init() -> Result<App> {
         picker_state,
         mpd_item_state,
         scroll_state: ScrollbarState::default(),
+        filtered_len: library_size(),
     })
 }
 
@@ -81,7 +84,7 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         Span::styled(&app.title, Style::new().bold().reversed()),
         Span::raw(" "),
         Span::styled("q", Style::new().bold().blue()),
-        Span::raw(" exit  "),
+        Span::raw(" exit"),
     ]);
 
     let layout = Layout::default()
@@ -97,7 +100,7 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
         .direction(Direction::Horizontal)
         .constraints(vec![
             Constraint::Length(title_bar.width() as u16 + 2),
-            Constraint::Min(0), // TODO: fix alignment?
+            Constraint::Length(app.mpd_item_state.width() as u16 + 2),
             Constraint::Min(0),
         ])
         .split(layout[0]);
@@ -120,6 +123,10 @@ fn draw(app: &mut App, frame: &mut Frame, input: &str) {
 
     frame.render_widget(title_bar, layout_title_mpd_filtered[0]);
     frame.render_widget(TuiPickerItem::new(&app.mpd_item_state, input), layout_title_mpd_filtered[1]);
+    frame.render_widget(
+        Span::styled(format!("({} found)", app.filtered_len), Style::new().cyan()),
+        layout_title_mpd_filtered[2],
+    );
     // TODO: Render n_filtered at layout_title_filtered[2]
 
     frame.render_stateful_widget(
@@ -228,33 +235,34 @@ fn handle_mouse_event(mev: event::MouseEvent) -> Action {
     }
 }
 
-fn generate_filtered_playlist(picker_state: &TuiPickerState, mpd_item_state: &TuiPickerItemState) -> Result<()> {
+fn generate_filtered_playlist(app: &mut App) -> Result<()> {
     let mut playlist = Playlist::new(path_from(|| Some(Playlist::playlist_dir()), ".Filtered.m3u"))?;
     // TODO: optimize -- we do not need to start with all songs if at least one item is green
     let mut tracks: HashSet<Track> = library_songs().iter().map(Track::new).into_iter().collect();
-    let mpd_tracks = match mpd_item_state.state() {
+    let mpd_tracks = match app.mpd_item_state.state() {
         1 | 2 => {
             let mut conn = mpd_connect()?;
             conn.queue()?.into_iter().map(|x| Track::new(x.file)).collect()
         },
         _ => vec![],
     };
-    for pl in picker_state.get_playlists_with_state(1) {
+    for pl in app.picker_state.get_playlists_with_state(1) {
         tracks = tracks.into_iter().filter(|x| pl.contains(x)).collect();
     }
-    if mpd_item_state.state() == 1 {
+    if app.mpd_item_state.state() == 1 {
         tracks = tracks.into_iter().filter(|x| mpd_tracks.contains(x)).collect();
     }
-    for pl in picker_state.get_playlists_with_state(2) {
+    for pl in app.picker_state.get_playlists_with_state(2) {
         tracks = tracks.into_iter().filter(|x| !pl.contains(x)).collect();
     }
-    if mpd_item_state.state() == 2 {
+    if app.mpd_item_state.state() == 2 {
         tracks = tracks.into_iter().filter(|x| !mpd_tracks.contains(x)).collect();
     }
     for track in tracks {
         playlist.push_track(track)?;
     }
     playlist.write()?;
+    app.filtered_len = playlist.len();
     Ok(())
 }
 
@@ -275,8 +283,24 @@ fn main() -> ExitCode {
     };
     let mut input = String::with_capacity(32);
     let mut terminal = ratatui::init();
+    let mut after_refresh = false;
     app.picker_state.refresh();
     loop {
+        // We want to regenerate the playlist (and update filtered_len) on refresh.
+        // However, this cannot be done inside Action::Refresh handler, because
+        // generate_filtered_playlist() relies on playlist contents cached in-memory,
+        // and those are, by design, gradually updated through successive refresh() calls.
+        // Generating every refresh would work, but be a huge performance waste.
+        // Instead, use a flag to detect the moment right after the refresh finished,
+        // and then regenerate.
+        if !app.picker_state.is_refreshing() && after_refresh {
+            if let Err(e) = generate_filtered_playlist(&mut app) {
+                error!("Failed to generated .Filtered.m3u: {e}");
+                return ExitCode::FAILURE;
+            }
+            after_refresh = false;
+        }
+
         if let Err(e) = terminal.draw(|x| draw(&mut app, x, &input)) {
             error!("Failed to draw frame: {e}");
             return ExitCode::FAILURE;
@@ -301,7 +325,7 @@ fn main() -> ExitCode {
                         input.clear();
                     }
                     if app.picker_state.did_select() {
-                        if let Err(e) = generate_filtered_playlist(&app.picker_state, &app.mpd_item_state) {
+                        if let Err(e) = generate_filtered_playlist(&mut app) {
                             error!("Failed to generated .Filtered.m3u: {e}");
                             return ExitCode::FAILURE;
                         }
@@ -313,13 +337,14 @@ fn main() -> ExitCode {
                 Action::ToggleMPD => {
                     app.mpd_item_state.select();
                     input.clear();
-                    if let Err(e) = generate_filtered_playlist(&app.picker_state, &app.mpd_item_state) {
+                    if let Err(e) = generate_filtered_playlist(&mut app) {
                         error!("Failed to generated .Filtered.m3u: {e}");
                         return ExitCode::FAILURE;
                     }
                 },
                 Action::Refresh => {
                     app.picker_state.refresh();
+                    after_refresh = true;
                 },
                 Action::ClearInput => {
                     input.clear();
