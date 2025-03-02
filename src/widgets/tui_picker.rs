@@ -39,6 +39,7 @@ pub struct TuiPickerState {
     /// A `None` value denotes the start of a new "paragraph" of items.
     items: Vec<Option<TuiPickerItemState>>,
     is_refreshing: bool,
+    did_select: bool,
 }
 
 /// A struct describing the complete state of a `TuiPickerItem`.
@@ -223,11 +224,17 @@ impl TuiPickerState {
             items,
             scroll_amount: 0,
             is_refreshing: false,
+            did_select: false,
         })
     }
 
     pub fn is_refreshing(&self) -> bool {
         self.is_refreshing
+    }
+
+    /// Returns whether the last call to `update_input()` caused an item selection.
+    pub fn did_select(&self) -> bool {
+        self.did_select
     }
 
     pub fn refresh(&mut self) -> bool {
@@ -248,9 +255,11 @@ impl TuiPickerState {
     }
 
     pub fn update_input(&mut self, input: &str) -> bool {
+        self.did_select = false;
         for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
             if item.shortcut == input {
                 item.select();
+                self.did_select = true;
                 return false;
             }
             if item.shortcut.starts_with(input) {
