@@ -383,4 +383,8 @@ impl TuiPickerItemState {
     pub fn select(&mut self) {
         self.state = (self.on_select)(self.state, &mut self.playlist);
     }
+
+    pub fn width(&self) -> usize {
+        self.shortcut.len() + self.shortcut_rpad + self.playlist.name().len() + 2
+    }
 }
