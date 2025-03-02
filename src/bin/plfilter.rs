@@ -290,7 +290,7 @@ fn main() -> ExitCode {
                 Err(e) => {
                     error!("Failed to read event: {e}");
                     return ExitCode::FAILURE;
-                }
+                },
             };
 
             match handle_event(ev, &mut input) {
@@ -309,7 +309,7 @@ fn main() -> ExitCode {
                 },
                 Action::DelChar => {
                     input.remove(input.len() - 1);
-                }
+                },
                 Action::ToggleMPD => {
                     app.mpd_item_state.select();
                     input.clear();
@@ -320,26 +320,26 @@ fn main() -> ExitCode {
                 },
                 Action::Refresh => {
                     app.picker_state.refresh();
-                }
+                },
                 Action::ClearInput => {
                     input.clear();
                 },
                 Action::ScrollUp => {
                     let scroll_amount = &mut app.picker_state.scroll_amount;
                     *scroll_amount = scroll_amount.saturating_sub(1);
-                }
+                },
                 Action::ScrollDown => {
                     let scroll_amount = &mut app.picker_state.scroll_amount;
                     *scroll_amount = scroll_amount.saturating_add(1);
-                }
+                },
                 Action::ScrollUpMore => {
                     let scroll_amount = &mut app.picker_state.scroll_amount;
                     *scroll_amount = scroll_amount.saturating_sub(10);
-                }
+                },
                 Action::ScrollDownMore => {
                     let scroll_amount = &mut app.picker_state.scroll_amount;
                     *scroll_amount = scroll_amount.saturating_add(10);
-                }
+                },
             }
         }
     }
