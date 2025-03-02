@@ -13,7 +13,7 @@ clap = { version = "4.5.1", features = ["derive"] }
 colored = "2.1.0"
 crossterm = "0.28.1"
 dirs = "5.0.1"
-id3 = ">=1.12.0, <1.15.0"
+id3 = ">=1.16.2"
 log = "0.4.20"
 mpd = "0.1.0"
 rand = "0.8.5"
