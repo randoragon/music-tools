@@ -228,6 +228,7 @@ impl TuiPickerState {
         })
     }
 
+    /// Returns whether a refresh is in progress. See `refresh()`.
     pub fn is_refreshing(&self) -> bool {
         self.is_refreshing
     }
@@ -237,6 +238,11 @@ impl TuiPickerState {
         self.did_select
     }
 
+    /// Calls `on_refresh` for every item. The first call to this method initiates a refresh. Then,
+    /// subsequent calls must be made until `is_refreshing()` returns `false`.
+    /// The reason is that it internally calls refresh for each item one by one. This design allows
+    /// you to redraw the screen while the refresh is happening, and implement e.g. animations
+    /// while keeping the program single-threaded.
     pub fn refresh(&mut self) -> bool {
         if !self.is_refreshing {
             for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
@@ -254,6 +260,8 @@ impl TuiPickerState {
         true
     }
 
+    /// Updates the input string. Returns `true` if at least one item is matching the current
+    /// input, `false` if input should be cleared and started from scratch.
     pub fn update_input(&mut self, input: &str) -> bool {
         self.did_select = false;
         for item in self.items.iter_mut().filter_map(|x| x.as_mut()) {
