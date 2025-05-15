@@ -35,7 +35,7 @@ impl Widget for TrackInfo {
 
         let duration = match self.duration {
             Some(d) => Span::styled(
-                format!("[{}:{}]", d / 60, d % 60),
+                format!("[{}:{:02}]", d / 60, d % 60),
                 Style::new().bold().cyan()
             ),
             None => Span::styled("[??:??]", Style::new().bold().cyan()),
