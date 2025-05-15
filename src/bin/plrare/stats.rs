@@ -341,10 +341,10 @@ fn print_summary_albums(n_top: usize, n_plays: usize, n_seconds: f64, albums: &H
             },
         }
     }
-    println!("No. albums:       {}", format!("{}", albums.len()).bright_yellow());
     let mut albums_order = albums.keys()
         .filter(|&k| albums[k].2.values().filter(|x| x.0 != 0).map(|x| x.1 / (x.0 as f64)).sum::<f64>() >= MIN_ALBUM_DURATION)
         .collect::<Vec<_>>();
+    println!("No. albums:       {}", format!("{}", albums_order.len()).bright_yellow());
     albums_order.sort_unstable_by_key(|&k| -albums[k].2.values().map(|x| x.1).sum::<f64>() as i32);
     albums_order.sort_by_key(|&k| -(album_estimate_n_plays(k, &albums[k].2) * 1e3) as i32);
     if reverse {
