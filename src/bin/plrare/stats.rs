@@ -203,9 +203,9 @@ fn print_summary_artists(n_top: usize, n_plays: usize, n_seconds: f64, artists: 
         format!("{:.2}%", top_coverage / n_seconds * 100.0).purple());
     for artist in artists_order.into_iter().take(n_top) {
         let duration = artists[artist].1 as usize;
-        println!("  {}{}{}  {}",
-            format!("{:02}:{:02}:{:02}",
-                duration / 3600,
+        println!("{}{}{}  {}",
+            format!("{:>4}:{:02}:{:02}",
+                format!("{:>02}", duration / 3600),
                 (duration % 3600) / 60,
                 duration % 60
             ).blue(),
