@@ -300,7 +300,7 @@ fn floor_album_listens_to_at_least_half(albums: &mut HashMap<AlbumPath, (ArtistN
                 }
             }
 
-            if batch.len() >= (album_n_tracks + 1) / 2 {
+            if batch.len() >= album_n_tracks.div_ceil(2) {
                 for (title, duration) in batch {
                     let trt = new_albums.get_mut(album_path).unwrap().2.get_mut(title).unwrap();
                     trt.0 += 1;

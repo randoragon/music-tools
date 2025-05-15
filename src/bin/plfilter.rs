@@ -238,7 +238,7 @@ fn handle_mouse_event(mev: event::MouseEvent) -> Action {
 fn generate_filtered_playlist(app: &mut App) -> Result<()> {
     let mut playlist = Playlist::new(path_from(|| Some(Playlist::playlist_dir()), ".Filtered.m3u"))?;
     // TODO: optimize -- we do not need to start with all songs if at least one item is green
-    let mut tracks: HashSet<Track> = library_songs().iter().map(Track::new).into_iter().collect();
+    let mut tracks: HashSet<Track> = library_songs().iter().map(Track::new).collect();
     let mpd_tracks = match app.mpd_item_state.state() {
         1 | 2 => {
             let mut conn = mpd_connect()?;
@@ -247,16 +247,16 @@ fn generate_filtered_playlist(app: &mut App) -> Result<()> {
         _ => vec![],
     };
     for pl in app.picker_state.get_playlists_with_state(1) {
-        tracks = tracks.into_iter().filter(|x| pl.contains(x)).collect();
+        tracks.retain(|x| pl.contains(x));
     }
     if app.mpd_item_state.state() == 1 {
-        tracks = tracks.into_iter().filter(|x| mpd_tracks.contains(x)).collect();
+        tracks.retain(|x| mpd_tracks.contains(x));
     }
     for pl in app.picker_state.get_playlists_with_state(2) {
-        tracks = tracks.into_iter().filter(|x| !pl.contains(x)).collect();
+        tracks.retain(|x| !pl.contains(x));
     }
     if app.mpd_item_state.state() == 2 {
-        tracks = tracks.into_iter().filter(|x| !mpd_tracks.contains(x)).collect();
+        tracks.retain(|x| !mpd_tracks.contains(x));
     }
     for track in tracks {
         playlist.push_track(track)?;
