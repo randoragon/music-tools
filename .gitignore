@@ -3,6 +3,7 @@
 /.envrc
 
 /target
+/result
 
 
 # Added by cargo
