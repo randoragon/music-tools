@@ -46,7 +46,7 @@ fn main() -> ExitCode {
         }
     }
 
-    println!("channels: {}\n", channels.keys().count());
+    println!("no. channels: {}\n", channels.keys().count());
 
     let mut sorted_channels = channels.keys().cloned().collect::<Vec<u8>>();
     sorted_channels.sort();
