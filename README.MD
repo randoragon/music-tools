@@ -15,12 +15,12 @@ public in mind. The conventions are listed below. Use at your own risk.
     - Print command-line summaries over a period of time.
     - Generate playlists of least and most listened to tracks.
 3. `plcategorize`
-    - Efficient TUI for adding or removing the current MPD song to playlists
-    - Reads configuration from ~/.playlist-mappings.tsv
+    - Efficient TUI for adding or removing the current MPD song to playlists.
+    - Reads configuration from ~/.playlist-mappings.tsv.
 4. `plfilter`
     - Efficient TUI for creating a ".Filtered.m3u" playlist by intersecting and
-      excluding other playlists
-    - Reads configuration from ~/.playlist-mappings.tsv
+      excluding other playlists.
+    - Reads configuration from ~/.playlist-mappings.tsv.
 5. `midiinfo`
     - Prints basic information about a MIDI file.
 
