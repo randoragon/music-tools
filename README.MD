@@ -21,6 +21,8 @@ public in mind. The conventions are listed below. Use at your own risk.
     - Efficient TUI for creating a ".Filtered.m3u" playlist by intersecting and
       excluding other playlists
     - Reads configuration from ~/.playlist-mappings.tsv
+5. `midiinfo`
+    - Prints basic information about a MIDI file.
 
 ## Conventions
 
