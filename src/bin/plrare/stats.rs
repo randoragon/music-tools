@@ -165,14 +165,13 @@ pub fn print_summary<'a>(fpaths: impl Iterator<Item = &'a Utf8PathBuf>, n_artist
 }
 
 pub fn print_summary_general(fnames: &[String], n_plays: usize, n_seconds: f64) {
-    let days = (n_seconds as usize) / 86400;
-    let hrs = ((n_seconds as usize) % 86400) / 3600;
+    let hrs = (n_seconds as usize) / 3600;
     let mins = ((n_seconds as usize) % 3600) / 60;
     let secs = (n_seconds % 60.0).round() as usize;
     println!("Inputs ({}): {}\n", fnames.len(),
         fnames.iter().map(|x| x.underline().to_string()).collect::<Vec<String>>().join(", "));
     println!("Total listen time:   {}",
-        format!("{days}d, {hrs}h, {mins}m, {secs}s").bright_yellow());
+        format!("{hrs}h, {mins}m, {secs}s").bright_yellow());
     println!("Total no. plays:     {}", format!("{n_plays}").bright_yellow());
     println!("Avg track duration:  {}",
         format!("{:02}:{:02}",
