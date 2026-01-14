@@ -11,8 +11,9 @@ use std::sync::OnceLock;
 use anyhow::{Result, anyhow};
 use camino::Utf8PathBuf;
 use std::collections::HashMap;
-use rand::thread_rng;
-use rand::distributions::{Distribution, WeightedIndex};
+use rand::rng;
+use rand::distr::Distribution;
+use rand::distr::weighted::WeightedIndex;
 use rand::seq::SliceRandom;
 use std::time::Duration;
 
@@ -123,17 +124,17 @@ fn generate_prob(content: Content, tracks: Vec<(Utf8PathBuf, usize)>, track_dura
 
     // Set up WeightedIndex and rng for weighted distribution sampling
     let mut dist = WeightedIndex::new(&weights)?;
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let mut last_idx: Option<usize> = None;
 
     let mut ret = Vec::<Utf8PathBuf>::new();
     let mut add_next = || -> Result<Duration> {
         // Choose a random value within the cumulative sum range
-        if last_idx.is_some() {
+        if let Some(last_idx) = last_idx {
             // Set the last added track's probability to 0.
             // If the sum of the distribution becomes 0, update_weights will throw an error,
             // thus allowing to detect when we've run out of tracks.
-            if let Err(e) = dist.update_weights(&[(last_idx.unwrap(), &0.0)]) {
+            if let Err(e) = dist.update_weights(&[(last_idx, &0.0)]) {
                 return Err(anyhow!("No tracks left to choose from: {e}"));
             }
         }
@@ -170,7 +171,7 @@ fn generate_prob(content: Content, tracks: Vec<(Utf8PathBuf, usize)>, track_dura
 }
 
 fn generate_strict(content: Content, mut tracks: Vec<(Utf8PathBuf, usize)>, track_durations: HashMap<Utf8PathBuf, Option<Duration>>, reverse: bool) -> Result<Vec<Utf8PathBuf>> {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     tracks.shuffle(&mut rng);
     tracks.sort_by_key(|x| if reverse { x.1 as i64 } else { -(x.1 as i64) });
 

@@ -8,7 +8,7 @@ use ratatui::{
     layout::Rect,
     buffer::Buffer,
     widgets::{Widget, StatefulWidget},
-    style::{Style, Stylize},
+    style::Style,
 };
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;

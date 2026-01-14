@@ -5,7 +5,7 @@ use ratatui::{
     layout::Rect,
     buffer::Buffer,
     widgets::Widget,
-    style::{Style, Stylize},
+    style::Style,
 };
 
 /// A custom ratatui widget for displaying info about some selected track.

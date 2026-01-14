@@ -10,7 +10,7 @@ use ratatui::{
     text::{Span, Line},
     Frame,
     widgets::{Scrollbar, ScrollbarState, ScrollbarOrientation},
-    style::{Style, Stylize},
+    style::Style,
     layout::{Layout, Constraint, Direction},
 };
 use log::error;
